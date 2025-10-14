@@ -1,0 +1,11 @@
+File formats
+HPGL
+    - Possible file extensions are "HPGL,PLT,HPG".
+GERBER
+    - Possible file extensions are "CUT,CAM"
+GGT
+    - Possible file extensions are "GGT"
+
+
+
+The goal is to implement a CAD file interpreter that generates coordinates from file data to provide to any visualization system.
