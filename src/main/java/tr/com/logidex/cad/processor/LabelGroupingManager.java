@@ -19,18 +19,18 @@ public class LabelGroupingManager {
      * @param gruplandirilacakEtiketListesi - Dosyadan okunan ham etiket listesi
      * @param pastalEnKucukXNoktasi         - Pastalin x eksenindeki ilk
      * @param toplamPastalUzunlugu          - Toplam pastal uzunlugu
-     * @param flipHorizontal                - Pastal x ekseninde aynalanmis mi ?
+     * @param                 - Pastal x ekseninde aynalanmis mi ?
      * @return ArrayList<Lbl> - Gruplandirilmis ve siraya sokulmus etiketlerin
      * listesidir.
      */
-    public List<Label> groupAndSortLabels(List<Label> gruplandirilacakEtiketListesi, double pastalEnKucukXNoktasi, double toplamPastalUzunlugu, double toplamPastalGenisligi, FlipHorizontally flipHorizontal, FlipVertically flipVertical) {
+    public List<Label> groupAndSortLabels(List<Label> gruplandirilacakEtiketListesi, double pastalEnKucukXNoktasi, double toplamPastalUzunlugu, double toplamPastalGenisligi, FlipDirection flipDirection) {
         labels = new ArrayList<>(gruplandirilacakEtiketListesi);
         minX = pastalEnKucukXNoktasi;
         maxX = toplamPastalUzunlugu;
         totalW = toplamPastalUzunlugu;
         totalH = toplamPastalGenisligi;
-        isFlipHorizontal = flipHorizontal == FlipHorizontally.YES;
-        isFlipVertical = flipVertical == FlipVertically.YES;
+        isFlipHorizontal = flipDirection == FlipDirection.HORIZONTAL;
+        isFlipVertical = flipDirection == FlipDirection.VERTICAL;
         listLbg = new ArrayList<ArrayList<Label>>();
         ArrayList<Label> lbg = new ArrayList<Label>();
         Label selectedLabel = null;

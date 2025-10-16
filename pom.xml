@@ -61,7 +61,7 @@
                         <id>default-cli</id>
                         <configuration>
                             <mainClass>
-                                tr.com.logidex.cad.logidexcadinterpreter/tr.com.logidex.cad.logidexcadinterpreter.HelloApplication
+                                tr.com.logidex/tr.com.logidex.Main
                             </mainClass>
                             <launcher>app</launcher>
                             <jlinkZipName>app</jlinkZipName>

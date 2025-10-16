@@ -1,7 +1,8 @@
 package tr.com.logidex.cad.processor;
 
-public enum Flipping {
+public enum FlipDirection {
 
+    NONE,
     HORIZONTAL,
     VERTICAL
 }

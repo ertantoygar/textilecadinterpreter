@@ -9,4 +9,9 @@ public final class PieceSequenceNumberCreator {
     public static int getSequenceNumber() {
         return sequenceNumber++;
     }
+
+    public static void resetCounter () {
+        sequenceNumber=1;
+    }
+
 }

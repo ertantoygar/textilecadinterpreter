@@ -2,7 +2,7 @@ package tr.com.logidex.cad.model;
 
 import javafx.geometry.Point2D;
 
-     enum Axis {
+enum Axis {
     X {
         @Override
         double getCoordinate(Point2D point) {
@@ -37,6 +37,8 @@ import javafx.geometry.Point2D;
     };
 
     abstract double getCoordinate(Point2D point);
+
     abstract Point2D setCoordinate(Point2D point, double value);
+
     abstract Point2D move(Point2D point, int delta);
 }

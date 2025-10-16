@@ -5,5 +5,5 @@ module tr.com.logidex.cad.logidexcadinterpreter {
     requires javafx.graphics;
 
 
-    opens tr.com.logidex.cad.logidexcadinterpreter to javafx.fxml;
+    opens tr.com.logidex.cad to javafx.fxml;
 }
