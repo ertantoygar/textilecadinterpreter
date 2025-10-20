@@ -1,14 +1,14 @@
-package tr.com.logidex.cad.processor;
+package tr.com.logidex.cad;
 import javafx.geometry.Point2D;
-import tr.com.logidex.cad.model.Label;
+import tr.com.logidex.cad.model.Lbl;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 public class LabelGroupingManager {
-    private ArrayList<Label> labels;
-    private ArrayList<ArrayList<Label>> listLbg;
-    private ArrayList<Label> finalLabels;
+    private ArrayList<Lbl> lbls;
+    private ArrayList<GroupedLabel> listLbg;
+    private ArrayList<Lbl> finalLbls;
     private boolean isFlipHorizontal, isFlipVertical;
     private double maxX, minX, totalW, totalH;
     /**
@@ -19,43 +19,43 @@ public class LabelGroupingManager {
      * @param gruplandirilacakEtiketListesi - Dosyadan okunan ham etiket listesi
      * @param pastalEnKucukXNoktasi         - Pastalin x eksenindeki ilk
      * @param toplamPastalUzunlugu          - Toplam pastal uzunlugu
-     * @param                 - Pastal x ekseninde aynalanmis mi ?
+     * @param flipHorizontal                - Pastal x ekseninde aynalanmis mi ?
      * @return ArrayList<Lbl> - Gruplandirilmis ve siraya sokulmus etiketlerin
      * listesidir.
      */
-    public List<Label> groupAndSortLabels(List<Label> gruplandirilacakEtiketListesi, double pastalEnKucukXNoktasi, double toplamPastalUzunlugu, double toplamPastalGenisligi, FlipDirection flipDirection) {
-        labels = new ArrayList<>(gruplandirilacakEtiketListesi);
+    public List<Lbl> groupAndSortLabels(List<Lbl> gruplandirilacakEtiketListesi, double pastalEnKucukXNoktasi, double toplamPastalUzunlugu, double toplamPastalGenisligi, FlipHorizontally flipHorizontal, FlipVertically flipVertical) {
+        lbls = new ArrayList<>(gruplandirilacakEtiketListesi);
         minX = pastalEnKucukXNoktasi;
         maxX = toplamPastalUzunlugu;
         totalW = toplamPastalUzunlugu;
         totalH = toplamPastalGenisligi;
-        isFlipHorizontal = flipDirection == FlipDirection.HORIZONTAL;
-        isFlipVertical = flipDirection == FlipDirection.VERTICAL;
-        listLbg = new ArrayList<ArrayList<Label>>();
-        ArrayList<Label> lbg = new ArrayList<Label>();
-        Label selectedLabel = null;
-        Label selectedNextLabel = null;
-        for (int i = 0; i < labels.size(); i++) {
-            selectedLabel = labels.get(i);
+        isFlipHorizontal = flipHorizontal == FlipHorizontally.YES;
+        isFlipVertical = flipVertical == FlipVertically.YES;
+        listLbg = new ArrayList<GroupedLabel>();
+        GroupedLabel lbg = new GroupedLabel();
+        Lbl selectedLbl = null;
+        Lbl selectedNextLbl = null;
+        for (int i = 0; i < lbls.size(); i++) {
+            selectedLbl = lbls.get(i);
             try {
-                selectedNextLabel = labels.get(i + 1);
+                selectedNextLbl = lbls.get(i + 1);
             } catch (Exception e) {
                 // TODO: handle exception
             }
-            selectedNextLabel = selectedNextLabel == null ? selectedLabel : selectedNextLabel;
-            lbg = parse(lbg, selectedLabel, selectedNextLabel);
+            selectedNextLbl = selectedNextLbl == null ? selectedLbl : selectedNextLbl;
+            lbg = parse(lbg, selectedLbl, selectedNextLbl);
         }
         // Dongu bittikten sonra son kalan grubu da torbaya atalim.
         listLbg.add(lbg);
         createFinalLabelList(listLbg);
-        return finalLabels;
+        return finalLbls;
     }
 
 
-    private ArrayList<Label> parse(ArrayList<Label> lbg, Label selectedLabel, Label selectedNextLabel) {
+    private GroupedLabel parse(GroupedLabel lbg, Lbl selectedLbl, Lbl selectedNextLbl) {
 
-        if(selectedLabel == null || selectedNextLabel == null)
-            return new ArrayList<Label>();
+        if(selectedLbl == null || selectedNextLbl == null)
+            return new GroupedLabel();
 
 
 
@@ -65,8 +65,8 @@ public class LabelGroupingManager {
          *
          *
          */
-        double dx = selectedLabel.getPosition().getX() - selectedNextLabel.getPosition().getX();
-        double dy = selectedLabel.getPosition().getY() - selectedNextLabel.getPosition().getY();
+        double dx = selectedLbl.getPosition().getX() - selectedNextLbl.getPosition().getX();
+        double dy = selectedLbl.getPosition().getY() - selectedNextLbl.getPosition().getY();
         double d = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
         /*
          * Aradaki mesafe <=20 bu yazilar alt alta gelmislerdir, yani bir etiket grubu
@@ -74,23 +74,23 @@ public class LabelGroupingManager {
          */
         if (d <= 20) {
             // Bu etiketi etiket grubuna ekle
-            lbg.add(selectedLabel);
+            lbg.add(selectedLbl);
         } else {
             /*
              * Ard arda gelenler bitti demektir.Grup etiketini olusturalim.
              */
             // Sonuncuyu da olusturulan gruba ekle.
-            lbg.add(selectedLabel);
+            lbg.add(selectedLbl);
             listLbg.add(lbg);
-            lbg = new ArrayList<Label>();
+            lbg = new GroupedLabel();
         }
         return lbg;
     }
 
 
-    private String labelGroup2String(ArrayList<Label> group) {
+    private String labelGroup2String(GroupedLabel group) {
         StringBuilder sb = new StringBuilder();
-        for (Label lb : group) {
+        for (Lbl lb : group) {
             sb.append(lb.getText() + (char) 0x0d); // add carriage return.
         }
         return sb.toString();
@@ -100,18 +100,18 @@ public class LabelGroupingManager {
     /**
      * Disari aktarilmaya hazir etiket listesini olusturur.
      */
-    private void createFinalLabelList(ArrayList<ArrayList<Label>> groupList) {
+    private void createFinalLabelList(ArrayList<GroupedLabel> groupList) {
 
         if(groupList == null || groupList.size() == 0)
             return;
 
-        finalLabels = new ArrayList<Label>();
+        finalLbls = new ArrayList<Lbl>();
         double x = 0;
         double y = 0;
         double pastalW = totalW;
         double pastalH = totalH;
         removeTheLineThatIncludesTheSameText(groupList);
-        for (ArrayList<Label> group : groupList) {
+        for (GroupedLabel group : groupList) {
 
             if(group == null || group .isEmpty())
                 continue;
@@ -121,17 +121,17 @@ public class LabelGroupingManager {
             // Bir etiketin pozisyonu 'refSatir' elemaninin pozisyonu olsun.
             x = labelXoffset - group.get(refSatir).getPosition().getX();
             y = labelYoffset - group.get(refSatir).getPosition().getY();
-            finalLabels.add(new Label(labelGroup2String(group), new Point2D(x, y), group.get(refSatir).getAngle(), group.get(refSatir).getOrigin(), group.get(refSatir).getWidth(), group.get(refSatir).getHeight()));
+            finalLbls.add(new Lbl(labelGroup2String(group), new Point2D(x, y), group.get(refSatir).getAngle(), group.get(refSatir).getOrigin(), group.get(refSatir).getWidth(), group.get(refSatir).getHeight()));
             listedekiIstenmeyenEtiketleriSil();
         }
     }
 
 
-    private void removeTheLineThatIncludesTheSameText(ArrayList<ArrayList<Label>> groupList) {
-        Label tmp = null;
+    private void removeTheLineThatIncludesTheSameText(ArrayList<GroupedLabel> groupList) {
+        Lbl tmp = null;
         //Yukaridan asagi dogru tarama yapar.Herhangi bir satirdaki verinin bir parcasi,
         //kendinden once gelen herhangi bir satirdaki yazinin tamamini iceriyorsa , tamami benzeyen satiri sil.
-        for (ArrayList<Label> group : groupList) {
+        for (GroupedLabel group : groupList) {
             for (int i = 0; i < group.size(); i++) {
                 tmp = group.get(i);
                 for (int j = i + 1; j < group.size(); j++) {
@@ -184,22 +184,22 @@ public class LabelGroupingManager {
 
 
     private void listedekiIstenmeyenEtiketleriSil() {
-        Iterator<Label> iter = finalLabels.iterator();
+        Iterator<Lbl> iter = finalLbls.iterator();
         /*
          * Bu dongunun sonunda elde edilen listenin icerisindeki textler , bir etiketin
          * (LabelGroup) elemani olmaya hak hazanmislardir.
          *
          */
         while (iter.hasNext()) {
-            Label label = iter.next();
-            int rowCountOfLabel = getLabelRows(label).length;
-            double labelPosX = label.getPosition().getX();
+            Lbl lbl = iter.next();
+            int rowCountOfLabel = getLabelRows(lbl).length;
+            double labelPosX = lbl.getPosition().getX();
             /*
              * Plc ye gonderilecek etiket pastalin sinirlari icerisinde olmalidir.Disinda
              * kalan yazilari yeni listemizden siliyoruz. Ayrica erak mavi icin ozel olarak
              * iki satirdan daha fazla etiket bilgisi gelemez.
              */
-            if ((labelPosX <= minX || labelPosX >= maxX) || (rowCountOfLabel == 1 && label.getText().length() > 100)) {
+            if ((labelPosX <= minX || labelPosX >= maxX) || (rowCountOfLabel == 1 && lbl.getText().length() > 100)) {
                 // Gecersiz text sil.
                 // System.out.println("Silindi : "+lbl.getText());
                 iter.remove();
@@ -208,15 +208,15 @@ public class LabelGroupingManager {
     }
 
 
-    private String[] getLabelRows(Label label) {
-        String[] rows = label.getText().split("\\n");
+    private String[] getLabelRows(Lbl lbl) {
+        String[] rows = lbl.getText().split("\\n");
         return rows;
     }
 
 
     public void clear() {
-        labels = null;
+        lbls = null;
         listLbg = null;
-        finalLabels = null;
+        finalLbls = null;
     }
 }

@@ -1,8 +1,7 @@
 package tr.com.logidex.cad.processor;
 import javafx.geometry.Point2D;
 import javafx.scene.shape.Line;
-import tr.com.logidex.cad.model.GGTPattern;
-import tr.com.logidex.cad.model.Label;
+import tr.com.logidex.cad.model.Lbl;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -11,14 +10,14 @@ import java.util.regex.Pattern;
 
 public class GGTFileProcessor extends FileProcessor {
 
-    private List<GGTPattern> parcalar;
-    private GGTPattern aktifGGTPattern;
+    private List<Parca> parcalar;
+    private Parca aktifParca;
     private final String fileContent;
 
     public GGTFileProcessor(String fileContent) {
         super(fileContent);
         this.parcalar = new ArrayList<>();
-        this.aktifGGTPattern = null;
+        this.aktifParca = null;
         this.fileContent = fileContent;
     }
 
@@ -36,10 +35,10 @@ public class GGTFileProcessor extends FileProcessor {
     protected void interpretCommands() {
         parcalar = parse(fileContent);
 
-        for (GGTPattern GGTPattern : parcalar) {
-            System.out.println("=== Parça: " + GGTPattern.getId() + " ===");
+        for (Parca parca : parcalar) {
+            System.out.println("=== Parça: " + parca.getId() + " ===");
 
-            List<Line> parcaLines = GGTPattern.getLines();
+            List<Line> parcaLines = parca.getLines();
             List<Line> scaledLines = new ArrayList<>();
 
             for (Line line : parcaLines) {
@@ -51,19 +50,19 @@ public class GGTFileProcessor extends FileProcessor {
             }
 
             super.lines.addAll(scaledLines);
-            super.linesForClosedShapes.put(GGTPattern.getId(),scaledLines);
-            super.getGGTPatterns().add(GGTPattern);
+            super.linesForClosedShapes.put(parca.getId(),scaledLines);
+            super.getGGTParcalar().add(parca);
 
 
 
             System.out.println("Line sayısı: " + scaledLines.size());
             System.out.println("------------------------");
-            System.out.println(GGTPattern.getId() + " ->" + GGTPattern.getLabel());
+            System.out.println(parca.getId() + " ->" + parca.getLabel());
             //System.out.println(parca.getLines().get(parca.getLines().size() -1 ));
         }
     }
 
-    public List<GGTPattern> parse(String dosyaIcerigi) {
+    public List<Parca> parse(String dosyaIcerigi) {
         parcalar.clear();
 
         // Parça başlangıçlarını bul
@@ -88,8 +87,8 @@ public class GGTFileProcessor extends FileProcessor {
             String parcaIcerigi = dosyaIcerigi.substring(baslangic, bitis);
             System.out.println(parcaIcerigi + "\n");
 
-            aktifGGTPattern = new GGTPattern(parcaNo);
-            parcalar.add(aktifGGTPattern);
+            aktifParca = new Parca(parcaNo);
+            parcalar.add(aktifParca);
 
 
             // Etiket bilgisini parse et
@@ -142,7 +141,7 @@ public class GGTFileProcessor extends FileProcessor {
 
 
 
-               aktifGGTPattern.getParcaninEtiketleri().put(etiketMetni,new Point2D(x,y));
+               aktifParca.getParcaninEtiketleri().put(etiketMetni,new Point2D(x,y));
 
 
                 int end = etiketMatcher.end();
@@ -162,7 +161,7 @@ public class GGTFileProcessor extends FileProcessor {
 
     private void assignALabel() {
 
-        var textAndPositions = aktifGGTPattern.getParcaninEtiketleri();
+        var textAndPositions = aktifParca.getParcaninEtiketleri();
 
 
         if(! textAndPositions.isEmpty()){
@@ -176,10 +175,10 @@ public class GGTFileProcessor extends FileProcessor {
 
             });
 
-            Label createdLabel = new Label(labelTextBuilder.toString(), pos.get(),0,2,12,12);
+            Lbl createdLabel = new Lbl(labelTextBuilder.toString(), pos.get(),0,2,12,12);
 
 
-            aktifGGTPattern.setEtiket(createdLabel);
+            aktifParca.setEtiket(createdLabel);
 
 
 
@@ -213,7 +212,7 @@ public class GGTFileProcessor extends FileProcessor {
                     for (int j = 0; j < kesmeNoktaları.size() - 1; j++) {
                         Point2D baslangic = kesmeNoktaları.get(j);
                         Point2D bitis = kesmeNoktaları.get(j + 1);
-                        aktifGGTPattern.cizgiEkle(baslangic, bitis);
+                        aktifParca.cizgiEkle(baslangic, bitis);
                     }
 
                     // Şekli kapat
@@ -222,7 +221,7 @@ public class GGTFileProcessor extends FileProcessor {
 
                     // Eğer şekil kapalı değilse kapat
                     if (!ilkNokta.equals(sonNokta)) {
-                        aktifGGTPattern.cizgiEkle(sonNokta, ilkNokta);
+                        aktifParca.cizgiEkle(sonNokta, ilkNokta);
                     }
                 }
 
@@ -261,14 +260,14 @@ public class GGTFileProcessor extends FileProcessor {
         return null;
     }
 
-    public List<GGTPattern> getParcalar() {
+    public List<Parca> getParcalar() {
         return parcalar;
     }
 
-    public GGTPattern getParcaById(String id) {
-        for (GGTPattern GGTPattern : parcalar) {
-            if (GGTPattern.getId().equals(id)) {
-                return GGTPattern;
+    public Parca getParcaById(String id) {
+        for (Parca parca : parcalar) {
+            if (parca.getId().equals(id)) {
+                return parca;
             }
         }
         return null;
@@ -281,7 +280,49 @@ public class GGTFileProcessor extends FileProcessor {
     }
 }
 
+class Parca {
+    private Integer id;
+    private List<Line> lines;
+    private Lbl etiket;
+    private final Map<String,Point2D> parcaninEtiketleri = new LinkedHashMap<>();
+
+    public Parca(Integer id) {
+        this.id = id;
+        this.lines = new ArrayList<>();
+        this.etiket = null;
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void cizgiEkle(Point2D baslangic, Point2D bitis) {
+        if (!baslangic.equals(bitis)) {
+            Line line = new Line(
+                    baslangic.getX(), baslangic.getY(),
+                    bitis.getX(), bitis.getY()
+            );
+            lines.add(line);
+        }
+    }
+
+    public List<Line> getLines() {
+        return lines;
+    }
+
+    public Lbl getLabel() {
+        return etiket;
+
+    }
+
+    public void setEtiket(Lbl label) {
+        this.etiket = label;
+    }
 
 
+    public Map<String,Point2D> getParcaninEtiketleri() {
+        return parcaninEtiketleri;
+    }
+}
 
 

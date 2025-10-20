@@ -2,7 +2,8 @@ package tr.com.logidex.cad.processor;
 import javafx.geometry.Dimension2D;
 import javafx.geometry.Point2D;
 import javafx.scene.shape.Line;
-import tr.com.logidex.cad.model.Label;
+import tr.com.logidex.cad.PieceSequenceNumberCreator;
+import tr.com.logidex.cad.model.Lbl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,7 +62,7 @@ public class GerberFileProcessor extends FileProcessor {
                 knifeDown = false;
             }
             if (m31DetectedAttachedToXYcommand) {
-                labels.add(new Label(instruction, tmpPenCurrent, 0, 2, 12, 12));
+                labels.add(new Lbl(instruction, tmpPenCurrent, 0, 2, 12, 12));
                 m31DetectedAttachedToXYcommand = false;
             }
             if (instruction.startsWith("X")) {
@@ -110,7 +111,7 @@ public class GerberFileProcessor extends FileProcessor {
                 continue; // to read label string
             }
             if (xyCaughtFor31) {// The xy position of the label was read.
-                labels.add(new Label(instruction, tmpPenCurrent, 0, 2, 12, 12));
+                labels.add(new Lbl(instruction, tmpPenCurrent, 0, 2, 12, 12));
                 xyCaughtFor31 = false;
             }
         }

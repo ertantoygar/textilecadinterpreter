@@ -1,4 +1,4 @@
-package tr.com.logidex.cad.processor;
+package tr.com.logidex.cad;
 public final class PieceSequenceNumberCreator {
 
     private static int sequenceNumber=1;
@@ -10,8 +10,7 @@ public final class PieceSequenceNumberCreator {
         return sequenceNumber++;
     }
 
-    public static void resetCounter () {
+    public static void resetCounter() {
         sequenceNumber=1;
     }
-
 }

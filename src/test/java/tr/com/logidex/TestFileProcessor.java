@@ -1,10 +1,16 @@
 package tr.com.logidex;
 
 import javafx.geometry.Dimension2D;
+import javafx.geometry.Point2D;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import tr.com.logidex.cad.processor.*;
+import tr.com.logidex.cad.*;
+import tr.com.logidex.cad.processor.FileProcessor;
+import tr.com.logidex.cad.processor.GGTFileProcessor;
+import tr.com.logidex.cad.processor.GerberFileProcessor;
+import tr.com.logidex.cad.processor.HPGLFileProcessor;
+
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -14,6 +20,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestFileProcessor {
 
@@ -34,7 +43,7 @@ public class TestFileProcessor {
 
 
         AtomicReference<String> s = new AtomicReference<>("");
-        fileProcessor.getPatterns().forEach(closedShape -> {
+        fileProcessor.getShapes().forEach(closedShape -> {
 
             s.set(s.get() + closedShape.getLines().toString());
 
@@ -43,7 +52,7 @@ public class TestFileProcessor {
 
         MessageDigest md = MessageDigest.getInstance("SHA-256");
 
-       String digestString  = "";
+        String digestString  = "";
 
         byte[] digest = md.digest(s.get().getBytes());
 
@@ -51,11 +60,64 @@ public class TestFileProcessor {
             digestString += digest[i];
         }
 
-        Assertions.assertEquals("-61-73107-100-100-107-18-21-96-6947-86-63-1113-10-68-117-19-9156-50-23-60892139-113-1005-55-19", digestString);
-        Assertions.assertEquals(159, fileProcessor.getSortedAndOptimizedLabels().size());
-        Assertions.assertEquals(new Dimension2D(6605.6256,1664.5128), fileProcessor.getDrawingDimensions());
+        assertEquals("-61-73107-100-100-107-18-21-96-6947-86-63-1113-10-68-117-19-9156-50-23-60892139-113-1005-55-19", digestString);
+        assertEquals(159, fileProcessor.sortedAndOptimizedLbls.size());
+        assertEquals(new Dimension2D(6605.6256,1664.5128), fileProcessor.drawingDimensions);
 
-        System.out.println(fileProcessor.getDrawingDimensions());
+
+
+        Point2D expected = new Point2D(25.4, 1217.68);
+        Point2D actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(25.4, 446.84);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(25.4, 1217.68);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+
+        fileProcessor.invertFlipH();
+
+        expected = new Point2D(101.44, 441.13);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        System.out.println("Expected:" + expected);
+        System.out.println("Actual:" + actual);
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+
+        fileProcessor.invertFlipH();
+
+        expected = new Point2D(25.4, 1217.68);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+        fileProcessor.invertFlipH();
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(103.82, 106.92);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        System.out.println("Expected:" + expected);
+        System.out.println("Actual:" + actual);
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+        fileProcessor.invertFlipH();
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(25.4, 1217.68);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+
+
+
 
     }
 
@@ -74,7 +136,7 @@ public class TestFileProcessor {
 
 
         AtomicReference<String> s = new AtomicReference<>("");
-        fileProcessor.getPatterns().forEach(closedShape -> {
+        fileProcessor.getShapes().forEach(closedShape -> {
 
             s.set(s.get() + closedShape.getLines().toString());
 
@@ -91,9 +153,62 @@ public class TestFileProcessor {
             digestString += digest[i];
         }
 
-        Assertions.assertEquals("-476648-36-45-11518-5-51-97-105-101-4-24-7990-96-26-169-216850-103-2828-12128998164-42", digestString);
-        Assertions.assertEquals(161, fileProcessor.getSortedAndOptimizedLabels().size());
-        Assertions.assertEquals(new Dimension2D(9419.5,1800.0), fileProcessor.getDrawingDimensions());
+        assertEquals("-476648-36-45-11518-5-51-97-105-101-4-24-7990-96-26-169-216850-103-2828-12128998164-42", digestString);
+        assertEquals(161, fileProcessor.sortedAndOptimizedLbls.size());
+        assertEquals(new Dimension2D(9419.5,1800.0), fileProcessor.drawingDimensions);
+
+
+
+        Point2D expected = new Point2D(147.33, 977.52);
+        Point2D actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        System.out.println("Expected:" + expected);
+        System.out.println("Actual:" + actual);
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(147.33, 822.48);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(147.33, 977.52);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+
+        fileProcessor.invertFlipH();
+
+        expected = new Point2D(67.50, 409.95);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        System.out.println("Expected:" + expected);
+        System.out.println("Actual:" + actual);
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+
+        fileProcessor.invertFlipH();
+
+        expected = new Point2D(147.33, 977.52);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+        fileProcessor.invertFlipH();
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(67.50, 1390.05);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        System.out.println("Expected:" + expected);
+        System.out.println("Actual:" + actual);
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+        fileProcessor.invertFlipH();
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(147.33, 977.52);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
 
 
 
@@ -113,7 +228,7 @@ public class TestFileProcessor {
 
 
         AtomicReference<String> s = new AtomicReference<>("");
-        fileProcessor.getPatterns().forEach(closedShape -> {
+        fileProcessor.getShapes().forEach(closedShape -> {
 
             s.set(s.get() + closedShape.getLines().toString());
 
@@ -130,14 +245,77 @@ public class TestFileProcessor {
             digestString += digest[i];
         }
 
-        Assertions.assertEquals("69-87-126-47-6159-114-12226-44-71-14-128-65-10964-113-10672068-1211428-5-2682-331486-45-125", digestString);
-        Assertions.assertEquals(43, fileProcessor.getSortedAndOptimizedLabels().size());
-        Assertions.assertEquals(new Dimension2D(2905.252,1400.0480000000002), fileProcessor.getDrawingDimensions());
+        assertEquals("69-87-126-47-6159-114-12226-44-71-14-128-65-10964-113-10672068-1211428-5-2682-331486-45-125", digestString);
+        assertEquals(43, fileProcessor.sortedAndOptimizedLbls.size());
+        assertEquals(new Dimension2D(2905.252,1400.0480000000002), fileProcessor.drawingDimensions);
+
+
+
+
+        Point2D expected = new Point2D(19.94, 96.90);
+        Point2D actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        System.out.println("Expected:" + expected);
+        System.out.println("Actual:" + actual);
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(19.94, 1263.14);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(19.94, 96.90);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+
+        fileProcessor.invertFlipH();
+
+        expected = new Point2D(56.53, 1062.98);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        System.out.println("Expected:" + expected);
+        System.out.println("Actual:" + actual);
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+
+        fileProcessor.invertFlipH();
+
+        expected = new Point2D(19.94, 96.90);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+        fileProcessor.invertFlipH();
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(55.36, 1209.98);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        System.out.println("Expected:" + expected);
+        System.out.println("Actual:" + actual);
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
+
+        fileProcessor.invertFlipH();
+        fileProcessor.invertFlipV();
+
+        expected = new Point2D(19.94, 96.90);
+        actual =fileProcessor.sortedAndOptimizedLbls.get(1).getPosition();
+        assertTrue(arePointsNearlyEqual(expected, actual, 0.01));
 
 
 
 
 
+
+
+
+
+    }
+
+    private boolean arePointsNearlyEqual(Point2D p1, Point2D p2, double epsilon) {
+        return Math.abs(p1.getX() - p2.getX()) < epsilon &&
+                Math.abs(p1.getY() - p2.getY()) < epsilon;
     }
 
 

@@ -1,4 +1,4 @@
-package tr.com.logidex.cad.util;
+package tr.com.logidex.cad;
 
 public class LabelDesigUtil {
 

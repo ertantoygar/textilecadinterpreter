@@ -2,9 +2,7 @@ package tr.com.logidex.cad.model;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import tr.com.logidex.cad.processor.FileProcessingException;
-import tr.com.logidex.cad.FileExtension;
-import tr.com.logidex.cad.Unit;
+import tr.com.logidex.cad.*;
 import tr.com.logidex.cad.processor.FileProcessor;
 import tr.com.logidex.cad.processor.GGTFileProcessor;
 import tr.com.logidex.cad.processor.GerberFileProcessor;
@@ -13,8 +11,6 @@ import tr.com.logidex.cad.processor.HPGLFileProcessor;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 public class SourceFile {
 
@@ -35,7 +31,7 @@ public class SourceFile {
 
         String fileContent = "";
         try {
-            fileContent = readFile(file.getAbsolutePath());
+            fileContent = Util.readFile(file.getAbsolutePath(),StandardCharsets.ISO_8859_1);
             FileProcessor fileProcessor = null;
             switch (extension) {
                 case HPGL:
@@ -65,10 +61,6 @@ public class SourceFile {
 
     }
 
-    private String readFile(String absolutePath) throws IOException {
-
-        return Files.readString(Paths.get(absolutePath), StandardCharsets.UTF_8);
-    }
 
 
 }

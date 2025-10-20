@@ -4,622 +4,510 @@ import javafx.geometry.Dimension2D;
 import javafx.geometry.Point2D;
 import javafx.scene.control.Alert;
 import javafx.scene.shape.Line;
-import tr.com.logidex.cad.Unit;
+import tr.com.logidex.cad.*;
+import tr.com.logidex.cad.model.ClosedShape;
+import tr.com.logidex.cad.model.Lbl;
 
-import tr.com.logidex.cad.model.GGTPattern;
-import tr.com.logidex.cad.model.Label;
-import tr.com.logidex.cad.model.Pattern;
-
-import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Abstract base class for processing CAD files.
- *
- * Handles common operations like parsing, label organization,
- * and pattern creation across different file formats (HPGL, GGT, Gerber).
- */
 public abstract class FileProcessor {
-
-
-
     public static final String REFERENCE_SIGN = "+";
-    private static final double DRAWING_SPLIT_WIDTH = 50.0;
-    private static final double PLOTTER_SCALE = 40.0;
-    private static final double SCALE_ADJUSTMENT = 1.016;
-
-
-
+    private static final double DRAWING_SPLIT_WIDTH = 50;
     public static Unit unit;
+    public List<Lbl> sortedAndOptimizedLbls = new ArrayList<Lbl>();
 
 
-
-    protected List<Label> labels = new ArrayList<>();
-    protected List<Line> lines = new ArrayList<>();
-    protected List<String> commands;
+    public Dimension2D drawingDimensions = new Dimension2D(0, 0);
+    public List<ClosedShape> shapes = new ArrayList<ClosedShape>();
+    public List<Lbl> labels = new ArrayList<Lbl>();
+    public List<Lbl> sortedLbls = new ArrayList<Lbl>();
+    public List<Line> lines = new ArrayList<Line>();
     protected List<String> UNWANTED_CHARS;
     protected String SPLIT_REGEX;
-    protected HashMap<Integer, List<Line>> linesForClosedShapes = new HashMap<>();
+    protected List<String> commands;
 
-
-
+    protected HashMap<Integer, List<Line>> linesForClosedShapes = new HashMap<Integer, List<Line>>();
+    boolean err = false;
     private String fileContent;
-    private final LabelGroupingManager labelGroupingManager = new LabelGroupingManager();
+    private LabelGroupingManager labelGroupingManager = new LabelGroupingManager();
+    private List<Parca> GGTParcalar = new ArrayList<>();
+    private static final double PLOTTER_SCALE = 40;
+    private FlipHorizontally flipHorizontally = FlipHorizontally.NO;
+    private FlipVertically flipVertically = FlipVertically.NO;
 
-    private List<Label> sortedLabels = new ArrayList<>();
-    private List<Label> sortedAndOptimizedLabels = new ArrayList<>();
-    private List<Pattern> patterns = new ArrayList<>();
-    private List<GGTPattern> ggtPatterns = new ArrayList<>();
-    private Dimension2D drawingDimensions = new Dimension2D(0, 0);
-    private boolean hasOverlapError = false;
-
-
-
-    protected FileProcessor(String fileContent) {
-        if (fileContent == null || fileContent.trim().isEmpty()) {
-            throw new IllegalArgumentException("File content cannot be null or empty");
-        }
+    public FileProcessor(String fileContent) {
         this.fileContent = fileContent;
         initUnwantedChars();
         initSplitRegex();
+
     }
 
-
-
-    protected abstract void initUnwantedChars();
-    protected abstract void initSplitRegex();
-    protected abstract void interpretCommands() throws FileProcessingException;
-
-
-    /**
-     * Executes the complete file processing pipeline.
-     *
-     * Steps:
-     * 1. Split commands
-     * 2. Remove unwanted characters
-     * 3. Interpret commands (format-specific)
-     * 4. Determine drawing dimensions
-     * 5. Group and sort labels
-     * 6. Create pattern pieces
-     * 7. Merge duplicate labels
-     * 8. Check for overlaps
-     *
-     * @throws FileProcessingException if processing fails
-     */
-    public void startFileProcessing() throws FileProcessingException {
-        try {
-            splitCommands();
-            removeUnwantedCharacters();
-            interpretCommands();
-            determineDrawingDimensions();
-            groupSortAndOptimizeLabels(FlipDirection.NONE);
-            createPatterns();
-            mergeLabelsIfPatternHasMultipleLabels();
-            checkForOverlappingPatterns();
-        } catch (FileProcessingException e) {
-            throw e;
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new FileProcessingException(
-                    "Error occurred during file processing: " + e.getMessage()
-            );
-        } finally {
-            // Clear file content to free memory
-            fileContent = null;
-        }
-    }
-
-    /**
-     * Flips all patterns in the specified direction.
-     *
-     * @param direction the flip direction
-     */
-    public void flipPatterns(FlipDirection direction) {
-        if (direction == FlipDirection.NONE) {
-            return;
-        }
-
-        for (Pattern pattern : patterns) {
-            pattern.restoreColor();
-
-            // Apply flip transformation
-            if (direction == FlipDirection.HORIZONTAL) {
-                pattern.mirrorX(drawingDimensions.getWidth());
-            }
-            if (direction == FlipDirection.VERTICAL) {
-                pattern.mirrorY(drawingDimensions.getHeight());
-            }
-
-            // Re-associate labels
-            reassociateLabelsAfterFlip(pattern);
-        }
-
-        // Reorganize labels if GGT format
-        if (this instanceof GGTFileProcessor) {
-            sortedAndOptimizedLabels = organizeLabels(
-                    labels,
-                    drawingDimensions.getWidth(),
-                    DRAWING_SPLIT_WIDTH
-            );
-        }
-    }
-
-    /**
-     * Clears all data to free memory.
-     */
-    public void clearAll() {
-        commands = null;
-        linesForClosedShapes = null;
-        sortedAndOptimizedLabels = null;
-        patterns = null;
-        labels = null;
-        sortedLabels = null;
-        lines = null;
-        fileContent = null;
-        labelGroupingManager.clear();
-    }
-
-    // ============================================
-    // PUBLIC API - Getters
-    // ============================================
-
-    public List<Pattern> getPatterns() {
-        return Collections.unmodifiableList(patterns);
-    }
-
-    public List<Label> getSortedAndOptimizedLabels() {
-        return Collections.unmodifiableList(sortedAndOptimizedLabels);
-    }
-
-    public Dimension2D getDrawingDimensions() {
-        return drawingDimensions;
-    }
-
-
-    public List<GGTPattern> getGGTPatterns() {
-        return ggtPatterns;
-    }
-
-    public String getPrintableDimensions() {
-        return String.format("L: %.2f, W: %.2f",
-                drawingDimensions.getWidth(),
-                drawingDimensions.getHeight()
-        );
-    }
-
-    public boolean hasOverlapError() {
-        return hasOverlapError;
-    }
 
     public LabelGroupingManager getLabelGroupingManager() {
         return labelGroupingManager;
     }
 
-    // ============================================
-    // PROTECTED METHODS - For subclasses
-    // ============================================
 
-    /**
-     * Scales a number according to plotter scaling rules.
-     *
-     * @param number the number to scale
-     * @return the scaled number
-     */
-    protected double scale(double number) {
-        return (number / PLOTTER_SCALE) * SCALE_ADJUSTMENT;
+    protected abstract void initUnwantedChars();
+
+    protected abstract void initSplitRegex();
+
+
+    public void startFileProcessing() throws FileProcessingException {
+        try {
+            splitCommands();
+            removeUnwantedCharacters();
+            interpretCommands();
+            determineDrawingDimension();
+            groupSortLabelsAndOptimizeRoutes(FlipHorizontally.NO, FlipVertically.NO);
+            createPieces();
+            mergeLabelsIfPatternHasTwoLabels();
+            checkOverlapError();
+        } catch (Exception e) {
+
+            e.printStackTrace();
+            throw new FileProcessingException("Error occurred during file processing \n" + e.getMessage());
+        }
     }
 
-    /**
-     * Gets the minimum X position from all lines.
-     *
-     * @return the minimum X coordinate
-     */
+    public List<ClosedShape> getShapes() {
+        return shapes;
+    }
+
     protected double getMinPosInX() {
-        return lines.stream()
-                .mapToDouble(Line::getStartX)
-                .min()
-                .orElse(0.0);
+        double xMin = Double.MAX_VALUE;
+        for (Line line : lines) {
+            if (line.getStartX() < xMin) { // check the xmax
+                xMin = line.getStartX();
+            }
+        }
+        return xMin;
     }
 
-    /**
-     * Determines if this processor handles GGT files.
-     *
-     * @return true if this is a GGT processor
-     */
-    protected boolean isGGTProcessor() {
-        return this instanceof GGTFileProcessor;
+
+    private void checkOverlapError() {
+        shapes.forEach((sh) -> {
+            for (int i = 0; i < shapes.size(); i++) {
+                if (!sh.equals(shapes.get(i))) {
+                    if (ClosedShape.pointInPolygon(sh.getLines(), shapes.get(i).getCenter())) {
+                        err = true;
+                    }
+                }
+            }
+        });
+        if (err) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setHeaderText("WARNING!");
+            alert.setContentText("Ic ice gecmis parcalar var! Bir parcanin hesaplanan merkezi, baska bir parcanin da alani icerisinde kaliyor."
+                    + "\n"
+                    + "\n"
+                    + "There are overlapped patterns! The calculated centroid of a pattern is falling under another pattern.");
+            alert.showAndWait();
+        }
     }
 
-    // ============================================
-    // PRIVATE METHODS - Processing Steps
-    // ============================================
 
-    /**
-     * Step 1: Split file content into commands.
-     */
-    private void splitCommands() {
-        commands = new ArrayList<>(Arrays.asList(fileContent.split(SPLIT_REGEX)));
+    protected double scale(double number) {
+        return number / PLOTTER_SCALE * 1.016;
     }
 
-    /**
-     * Step 2: Remove unwanted characters from commands.
-     */
-    private void removeUnwantedCharacters() {
-        commands.removeAll(UNWANTED_CHARS);
-    }
 
-    /**
-     * Step 3: Determine drawing dimensions from lines.
-     */
-    private void determineDrawingDimensions() {
+    protected void determineDrawingDimension() {
         drawingDimensions = calculateDrawingDimensions(lines);
     }
 
-    /**
-     * Calculates the bounding dimensions of the drawing.
-     *
-     * @param lines all lines in the drawing
-     * @return the dimensions (width, height)
-     */
-    private Dimension2D calculateDrawingDimensions(List<Line> lines) {
-        double maxX = 0;
-        double maxY = 0;
 
+    protected Dimension2D calculateDrawingDimensions(List<Line> lines) {
+        double lengthOfTheDrawing = 0;
+        double widthOfTheDrawing = 0;
         for (Line line : lines) {
-            maxX = Math.max(maxX, Math.max(line.getStartX(), line.getEndX()));
-            maxY = Math.max(maxY, Math.max(line.getStartY(), line.getEndY()));
-        }
-
-        return new Dimension2D(maxX, maxY);
-    }
-
-    /**
-     * Step 4: Group, sort, and optimize label processing order.
-     */
-    private void groupSortAndOptimizeLabels(tr.com.logidex.cad.processor.FlipDirection flipDirection) {
-        if (labels.isEmpty()) {
-            return;
-        }
-
-        double minPosX = getMinPosInX();
-        double width = drawingDimensions.getWidth();
-        double height = drawingDimensions.getHeight();
-
-        sortedLabels = labelGroupingManager.groupAndSortLabels(
-                labels, minPosX, width, height, flipDirection
-        );
-
-        sortedAndOptimizedLabels = organizeLabels(
-                sortedLabels,
-                width,
-                DRAWING_SPLIT_WIDTH
-        );
-
-        addReferenceLabel();
-    }
-
-    /**
-     * Adds a reference label at the origin.
-     */
-    private void addReferenceLabel() {
-        Label referenceLabel = new Label(
-                REFERENCE_SIGN,
-                new Point2D(0, 0),
-                0, 0, 0, 0
-        );
-        sortedAndOptimizedLabels.add(0, referenceLabel);
-    }
-
-    /**
-     * Step 5: Create pattern pieces from lines.
-     */
-    private void createPatterns() {
-        // Pre-populate labels list for GGT format
-        if (isGGTProcessor()) {
-            int requiredSize = linesForClosedShapes.size() + 1;
-            while (labels.size() < requiredSize) {
-                labels.add(null);
+            if (line.getEndX() > lengthOfTheDrawing) { // check the xmax
+                lengthOfTheDrawing = line.getEndX();
+            }
+            if (line.getEndY() > widthOfTheDrawing) { // check the ymax
+                widthOfTheDrawing = line.getEndY();
             }
         }
+        return new Dimension2D(lengthOfTheDrawing, widthOfTheDrawing);
+    }
 
-        // Create patterns from line groups
-        for (Map.Entry<Integer, List<Line>> entry : linesForClosedShapes.entrySet()) {
-            Pattern pattern = new Pattern(entry.getValue(), isGGTProcessor());
 
-            if (pattern.isValid()) {
-                pattern.relocateCenterX();
-                pattern.setId(entry.getKey());
+    protected void splitCommands() {
+        commands = new ArrayList<>(Arrays.asList(fileContent.split(SPLIT_REGEX)));
+        fileContent = null;
+    }
 
-                if (isGGTProcessor()) {
-                    processGGTPattern(pattern);
-                } else {
-                    associatePatternWithLabels(pattern);
-                }
 
-                addPatternIfUnique(pattern);
-            }
+    protected void removeUnwantedCharacters() {
+        commands.removeAll(UNWANTED_CHARS);
+    }
+
+
+    protected abstract void interpretCommands();
+
+
+    public void groupSortLabelsAndOptimizeRoutes(FlipHorizontally flipH, FlipVertically flipV) {
+        if (!labels.isEmpty()) {
+            double minPosX = getMinPosInX();
+            double width = drawingDimensions.getWidth();
+            double height = drawingDimensions.getHeight();
+            sortedLbls = labelGroupingManager.groupAndSortLabels(labels, minPosX, width, height, flipH, flipV);
+            sortedAndOptimizedLbls = organizeLabels(sortedLbls, drawingDimensions.getWidth(), DRAWING_SPLIT_WIDTH);
+
+            addReferenceLabelToTheFinalList();
         }
     }
 
-    /**
-     * Processes a GGT format pattern.
-     */
-    private void processGGTPattern(Pattern pattern) {
-        for (GGTPattern ggtPattern : ggtPatterns) {
-            if (pattern.getId().equals(ggtPattern.getId())) {
-                Label label = ggtPattern.getLabel();
-
-                if (label != null) {
-                    label.changeLabelPosition(pattern.getCenter());
-                    pattern.setLabel(label);
-                    label.setShape(pattern);
-
-                    labels.set(pattern.getId(), label);
-                    labels.set(0, new Label(REFERENCE_SIGN, new Point2D(0, 0), 0, 0, 0, 0));
-                }
-                break;
-            }
-        }
-
-        sortedAndOptimizedLabels = organizeLabels(
-                labels,
-                drawingDimensions.getWidth(),
-                DRAWING_SPLIT_WIDTH
-        );
-    }
 
     /**
-     * Associates a pattern with labels that fall inside it.
+     * Finds the labels that have been bound to the same shape and merges them.
+     *
      */
-    private void associatePatternWithLabels(Pattern pattern) {
-        for (Label label : sortedAndOptimizedLabels) {
-            if (label == null) continue;
+    public void mergeLabelsWithSameShape(){
 
-            if (Pattern.containsPoint(pattern.getLines(), label.getPosition())
-                    && pattern.isCenterInside()) {
-                if (pattern.getLabel() == null) {
-                    pattern.setLabel(label);
-                    label.setShape(pattern);
-                    break; // Each pattern gets only one label initially
-                }
-            }
-        }
-    }
 
-    /**
-     * Adds pattern to list if it doesn't already exist.
-     */
-    private void addPatternIfUnique(Pattern pattern) {
-        boolean alreadyExists = patterns.stream()
-                .anyMatch(p -> p.getLines().equals(pattern.getLines()));
+      //  Find the labels that have been bound to the same shape.
+        Map<ClosedShape, List<Lbl>> duplicatedShapes = sortedAndOptimizedLbls.stream()
+                .filter(lbl -> lbl.getShape() != null)
+                .collect(Collectors.groupingBy(Lbl::getShape));
 
-        if (!alreadyExists) {
-            patterns.add(pattern);
-        }
-    }
 
-    /**
-     * Step 6: Merge labels that belong to the same pattern.
-     */
-    private void mergeLabelsIfPatternHasMultipleLabels() {
-        // Find labels without patterns
-        List<Label> orphanedLabels = sortedAndOptimizedLabels.stream()
-                .filter(label -> label.getShape() == null
-                        && !REFERENCE_SIGN.equals(label.getText()))
-                .collect(Collectors.toList());
+        List<Lbl> toRemove = new ArrayList<>();
 
-        // Map orphaned labels to patterns
-        Map<Label, Pattern> labelToPattern = new HashMap<>();
-        for (Label label : orphanedLabels) {
-            findPatternForLabel(label).ifPresent(pattern ->
-                    labelToPattern.put(label, pattern)
-            );
-        }
+        duplicatedShapes.forEach((shape, lblList) -> {
 
-        // Remove orphaned labels from main list
-        sortedAndOptimizedLabels.removeAll(orphanedLabels);
+            if (lblList.size() > 1) {
+                // Find the label that has the longest text and keep it.
+                Lbl longest = lblList.stream()
+                        .max(Comparator.comparingInt(lbl -> lbl.getText().length()))
+                        .orElse(lblList.get(0));
 
-        // Merge text into existing pattern labels
-        labelToPattern.forEach((orphanedLabel, pattern) -> {
-            Label existingLabel = pattern.getLabel();
-            if (existingLabel != null) {
-                String mergedText = existingLabel.getText() + "\n" + orphanedLabel.getText();
-                existingLabel.setText(mergedText);
-            }
-        });
-    }
+                // Add the texts of the other to the longest.
+                lblList.stream()
+                        .filter(lbl -> lbl != longest)
+                        .forEach(shortLbl -> {
+                            String currentText = longest.getText();
+                            String textToAdd = shortLbl.getText();
 
-    /**
-     * Finds the pattern that contains a given label.
-     */
-    private Optional<Pattern> findPatternForLabel(Label label) {
-        return patterns.stream()
-                .filter(pattern -> Pattern.containsPoint(pattern.getLines(), label.getPosition()))
-                .findFirst();
-    }
+                            // Add the short text to the end of the long text
+                            longest.setText(currentText + "\n" + textToAdd);
 
-    /**
-     * Merges labels that are associated with the same pattern.
-     * (Alternative approach - keeps all labels but merges their text)
-     */
-    @SuppressWarnings("unused")
-    private void mergeLabelsWithSamePattern() {
-        Map<Pattern, List<Label>> patternToLabels = sortedAndOptimizedLabels.stream()
-                .filter(label -> label.getShape() != null)
-                .collect(Collectors.groupingBy(Label::getShape));
-
-        List<Label> toRemove = new ArrayList<>();
-
-        patternToLabels.forEach((pattern, labelList) -> {
-            if (labelList.size() > 1) {
-                // Keep the label with longest text
-                Label primary = labelList.stream()
-                        .max(Comparator.comparingInt(l -> l.getText().length()))
-                        .orElse(labelList.get(0));
-
-                // Merge other labels into primary
-                labelList.stream()
-                        .filter(label -> label != primary)
-                        .forEach(label -> {
-                            primary.setText(primary.getText() + "\n" + label.getText());
-                            toRemove.add(label);
+                            // Add the label that has the shortest text to the to-be-removed list.
+                            toRemove.add(shortLbl);
                         });
             }
         });
 
-        sortedAndOptimizedLabels.removeAll(toRemove);
+        sortedAndOptimizedLbls.removeAll(toRemove);
+
     }
+    public void mergeLabelsIfPatternHasTwoLabels() {
 
-    /**
-     * Step 7: Check for overlapping patterns and show warning.
-     */
-    private void checkForOverlappingPatterns() {
-        hasOverlapError = false;
+        System.out.println("mergeLabelsIfPatternHasTwoLabels");
+        List<Lbl> notHaveAShape = sortedAndOptimizedLbls.stream().filter(lbl -> lbl.getShape() == null && !lbl.getText().equals(REFERENCE_SIGN)).collect(Collectors.toList());
+        Map<Lbl, ClosedShape> map = new HashMap<>();
 
-        for (int i = 0; i < patterns.size(); i++) {
-            Pattern pattern1 = patterns.get(i);
-            for (int j = i + 1; j < patterns.size(); j++) {
-                Pattern pattern2 = patterns.get(j);
+        notHaveAShape.forEach(lbl -> {
 
-                if (Pattern.containsPoint(pattern1.getLines(), pattern2.getCenter())) {
-                    hasOverlapError = true;
+            for (int index = 0; index < shapes.size(); index++) {
+                ClosedShape s = shapes.get(index);
+                if (ClosedShape.pointInPolygon(s.getLines(), lbl.getPosition())) {
+                    map.put(lbl, s);
                     break;
                 }
             }
-            if (hasOverlapError) break;
-        }
 
-        if (hasOverlapError) {
-            showOverlapWarning();
-        }
-    }
+        });
 
-    /**
-     * Shows a warning dialog for overlapping patterns.
-     */
-    private void showOverlapWarning() {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setHeaderText("WARNING!");
-        alert.setContentText(
-                "There are overlapping patterns! " +
-                        "The calculated centroid of one pattern falls inside another pattern.\n\n" +
-                        "İç içe geçmiş parçalar var! " +
-                        "Bir parçanın hesaplanan merkezi, başka bir parçanın da alanı içerisinde kalıyor."
-        );
-        alert.showAndWait();
-    }
+        sortedAndOptimizedLbls.removeAll(notHaveAShape);
 
-    /**
-     * Re-associates labels with pattern after flipping.
-     */
-    private void reassociateLabelsAfterFlip(Pattern pattern) {
-        if (isGGTProcessor()) {
-            // GGT: Keep existing label and update position
-            Label currentLabel = pattern.getLabel();
-            if (currentLabel != null) {
-                currentLabel.changeLabelPosition(pattern.getCenter());
-                pattern.setLabel(currentLabel);
-                currentLabel.setShape(pattern);
+        map.entrySet().forEach(entry -> {
+
+            Lbl l = entry.getValue().getLabel();
+
+            if(l!=null){
+
+            String labelText = l.getText();
+            String textToAdd = entry.getKey().getText();
+            l.setText(labelText + "\n" + textToAdd);
             }
-        } else {
-            // Other formats: Re-associate based on position
-            for (Label label : sortedAndOptimizedLabels) {
-                if (Pattern.containsPoint(pattern.getLines(), label.getPosition())) {
-                    pattern.setLabel(label);
-                    label.setShape(pattern);
+
+
+        });
+
+
+    }
+
+
+    protected void createPieces() {
+        if (this instanceof GGTFileProcessor) {
+            for (int i = 0; i < linesForClosedShapes.size() + 1; i++) {
+                labels.add(null);
+            }
+        }
+
+        for (Map.Entry<Integer, List<Line>> entry : linesForClosedShapes.entrySet()) {
+            ClosedShape cs = new ClosedShape(entry.getValue(), (this instanceof GGTFileProcessor)); //closed shape e numara vermek gerekiyor!!
+            if (cs.isAvalidPiece()) {
+
+                cs.relocateTheOriginInXaxis();
+                cs.setID(entry.getKey());
+
+                boolean isGGT = this instanceof GGTFileProcessor;
+
+                if (isGGT) {
+
+                    for (Parca p : getGGTParcalar()) {
+                        if (cs.getID() == p.getId()) {
+
+                            Lbl label = p.getLabel();
+                            if (label != null) {
+
+
+                                label.changeLabelPosition(cs.getCenter());
+                                cs.setLabel(label);
+                                label.setShape(cs);
+
+
+                            } else { //label is null
+                                // cs.setLabel(new Lbl("No label data!",cs.getCenter(),0,2,12,12));
+                                continue;
+
+                            }
+
+
+                            labels.set(cs.getID(), cs.getLbl());
+                            labels.set(0, new Lbl(REFERENCE_SIGN, new Point2D(0, 0), 0, 0, 0, 0));
+
+                        }
+                    }
+
+
+                    sortedAndOptimizedLbls = organizeLabels(labels, drawingDimensions.getWidth(), DRAWING_SPLIT_WIDTH);
+
+
+                } else {
+                    for (Lbl lbl : sortedAndOptimizedLbls) {
+
+                        if (lbl == null)
+                            continue;
+                        if (cs.pointInPolygon(cs.getLines(), lbl.getPosition()) && cs.isCalculatedCenterPointIsInThisShape()) {
+                            if (cs.getLabel() == null) {
+                                cs.setLabel(lbl);
+                                lbl.setShape(cs);
+                            }
+                        }
+                    }
+                }
+
+
+                boolean ItAlreadyHas = false;
+                for (ClosedShape s : shapes) {
+                    if (s.getLines().equals(cs.getLines())) // birebir ayni sekil zaten var.
+                        ItAlreadyHas = true;
                     break;
+                }
+                if (!ItAlreadyHas) {
+                    shapes.add(cs);
+                }
+
+
+            }
+        }
+
+    }
+
+
+    //    public void flipShapes(Flipping flipping) {
+//        for (ClosedShape cs : shapes) {
+//            cs.restoreColor();
+//            if (flipping == Flipping.HORIZONTAL)
+//                cs.mirrorX(drawingDimensions.getWidth());
+//            if (flipping == Flipping.VERTICAL)
+//                cs.mirrorY(drawingDimensions.getHeight());
+//            for (Lbl lbl : sortedAndOptimizedLbls) {
+//                if (ClosedShape.pointInPolygon(cs.getLines(), lbl.getPosition())) {
+//                    cs.setLabel(lbl);
+//                    lbl.setShape(cs);
+//                }
+//            }
+//        }
+//    }
+    public void flipShapes(Flipping flipping) {
+        for (ClosedShape cs : shapes) {
+            cs.restoreColor();
+
+            // Shape'i flip et
+            if (flipping == Flipping.HORIZONTAL)
+                cs.mirrorX(drawingDimensions.getWidth());
+            if (flipping == Flipping.VERTICAL)
+                cs.mirrorY(drawingDimensions.getHeight());
+
+            // GGT dosyaları için özel işlem
+            if (this instanceof GGTFileProcessor) {
+                // Mevcut label'ı koru ve pozisyonunu güncelle
+                Lbl currentLabel = cs.getLabel();
+                if (currentLabel != null) {
+                    // Label pozisyonunu shape'in yeni merkezine taşı
+                    currentLabel.changeLabelPosition(cs.getCenter());
+
+                    // Shape-label ilişkisini koru
+                    cs.setLabel(currentLabel);
+                    currentLabel.setShape(cs);
+                }
+            } else {
+                // Diğer formatlar için pozisyon bazlı yeniden eşleştirme
+                for (Lbl lbl : sortedAndOptimizedLbls) {
+                    if (ClosedShape.pointInPolygon(cs.getLines(), lbl.getPosition())) {
+                        cs.setLabel(lbl);
+                        lbl.setShape(cs);
+                    }
                 }
             }
         }
+
+        // GGT için sortedAndOptimizedLbls listesini güncelle
+        if (this instanceof GGTFileProcessor) {
+            // Label listesini yeniden organize et (pozisyonlar güncellendiği için)
+            sortedAndOptimizedLbls = organizeLabels(labels, drawingDimensions.getWidth(), DRAWING_SPLIT_WIDTH);
+        }
     }
 
-    // ============================================
-    // STATIC UTILITY - Label Organization
-    // ============================================
+
+    public void clearAll() {
+        commands = null;
+        linesForClosedShapes = null;
+        sortedAndOptimizedLbls = null;
+        shapes = null;
+        labels = null;
+        sortedLbls = null;
+        lines = null;
+        fileContent = null;
+        labelGroupingManager.clear();
+    }
+
+
+    private void addReferenceLabelToTheFinalList() {
+        Lbl referenceLabel = new Lbl(REFERENCE_SIGN, new Point2D(0, 0), 0, 0, 0, 0);
+        sortedAndOptimizedLbls.add(0, referenceLabel);
+    }
+
+
+    public String getPrintableDimensions() {
+
+        String formattedW = String.format("%.2f", drawingDimensions.getWidth());
+        String formattedH = String.format("%.2f", drawingDimensions.getHeight());
+        return "L: " + formattedW + ", W: " + formattedH;
+    }
+
+
+    public List<Parca> getGGTParcalar() {
+        return GGTParcalar;
+    }
+
 
     /**
-     * Organizes labels in an optimal processing order using a snake pattern.
+     * Organizes labels in an optimal processing order.
      *
-     * Labels are divided into vertical strips, sorted by Y within each strip,
-     * and odd strips are reversed to create a snake/boustrophedon pattern
-     * that minimizes processing head movement.
-     *
-     * @param labels the labels to organize
-     * @param drawingWidth the width of the drawing
-     * @param stripWidth the width of each strip
-     * @return organized labels in processing order
+     * @param labels       List of labels to organize
+     * @param drawingWidth Width of the drawing area
+     * @param stripWidth   Width of each vertical strip for processing
+     * @return List of labels in optimal processing order
      */
-    public static List<Label> organizeLabels(
-            List<Label> labels,
-            double drawingWidth,
-            double stripWidth
-    ) {
+    public static List<Lbl> organizeLabels(List<Lbl> labels, double drawingWidth, double stripWidth) {
         if (labels == null || labels.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // Calculate number of strips
+        // Determine number of strips
         int stripCount = (int) Math.ceil(drawingWidth / stripWidth);
 
-        // Create strips
-        List<List<Label>> strips = createStrips(stripCount);
-
-        // Assign labels to strips
-        assignLabelsToStrips(labels, strips, stripWidth, stripCount);
-
-        // Sort and create snake pattern
-        sortStripsInSnakePattern(strips);
-
-        // Flatten to single list
-        return flattenStrips(strips);
-    }
-
-    private static List<List<Label>> createStrips(int count) {
-        List<List<Label>> strips = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
+        // Create a list for each strip
+        List<List<Lbl>> strips = new ArrayList<>(stripCount);
+        for (int i = 0; i < stripCount; i++) {
             strips.add(new ArrayList<>());
         }
-        return strips;
-    }
 
-    private static void assignLabelsToStrips(
-            List<Label> labels,
-            List<List<Label>> strips,
-            double stripWidth,
-            int stripCount
-    ) {
-        for (Label label : labels) {
-            if (label == null) continue;
 
-            int stripIndex = (int) (label.getPosition().getX() / stripWidth);
+        // Assign each label to its appropriate strip
+        for (Lbl label : labels) {
 
-            // Handle boundary cases
-            stripIndex = Math.min(stripIndex, stripCount - 1);
+            if (label == null) {
 
-            if (stripIndex >= 0) {
+                continue;
+            }
+
+            double x = label.getPosition().getX();
+            int stripIndex = (int) (x / stripWidth);
+
+            // Handle edge case where label is exactly at the boundary
+            if (stripIndex == stripCount) {
+                stripIndex = stripCount - 1;
+            }
+
+            // Ensure index is within bounds
+            if (stripIndex >= 0 && stripIndex < stripCount) {
                 strips.get(stripIndex).add(label);
             }
         }
-    }
 
-    private static void sortStripsInSnakePattern(List<List<Label>> strips) {
-        for (int i = 0; i < strips.size(); i++) {
+        // Sort each strip by y-position
+        for (int i = 0; i < stripCount; i++) {
+            final int index = i;
+
             // Sort by Y position
-            strips.get(i).sort(
-                    Comparator.comparingDouble(l -> l.getPosition().getY())
-            );
+            Collections.sort(strips.get(i), Comparator.comparingDouble(l -> l.getPosition().getY()));
 
-            // Reverse odd strips for snake pattern
+            // For even-indexed strips, reverse the order for snake pattern
             if (i % 2 == 1) {
                 Collections.reverse(strips.get(i));
             }
         }
+
+        // Combine all strips into final result
+        List<Lbl> result = new ArrayList<>(labels.size());
+        for (List<Lbl> strip : strips) {
+            result.addAll(strip);
+        }
+
+        return result;
     }
 
-    private static List<Label> flattenStrips(List<List<Label>> strips) {
-        return strips.stream()
-                .flatMap(List::stream)
-                .collect(Collectors.toList());
+    public void invertFlipH() {
+        flipHorizontally = flipHorizontally == FlipHorizontally.YES ? FlipHorizontally.NO : FlipHorizontally.YES;
+
+        // GGT dosyaları için özel işlem
+        if (this instanceof GGTFileProcessor) {
+            // Sadece shape'leri flip et, label organizasyonuna dokunma
+          flipShapes(Flipping.HORIZONTAL);
+        } else {
+            // Diğer dosya tipleri için normal işlem
+            groupSortLabelsAndOptimizeRoutes(flipHorizontally, flipVertically);
+            flipShapes(Flipping.HORIZONTAL);
+           mergeLabelsWithSameShape();
+        }
+
+
+    }
+
+    public void invertFlipV() {
+        flipVertically = flipVertically == FlipVertically.YES ? FlipVertically.NO : FlipVertically.YES;
+
+        // GGT dosyaları için özel işlem
+        if (this instanceof GGTFileProcessor) {
+            // Sadece shape'leri flip et, label organizasyonuna dokunma
+         flipShapes(Flipping.VERTICAL);
+        } else {
+            // Diğer dosya tipleri için normal işlem
+            groupSortLabelsAndOptimizeRoutes(flipHorizontally, flipVertically);
+            flipShapes(Flipping.VERTICAL);
+            mergeLabelsWithSameShape();
+        }
+
+
+
     }
 }
+
+

@@ -2,7 +2,8 @@ package tr.com.logidex.cad.processor;
 import javafx.geometry.Dimension2D;
 import javafx.geometry.Point2D;
 import javafx.scene.shape.Line;
-import tr.com.logidex.cad.model.Label;
+import tr.com.logidex.cad.PieceSequenceNumberCreator;
+import tr.com.logidex.cad.model.Lbl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -58,9 +59,9 @@ public class HPGLFileProcessor extends FileProcessor {
                     }
                     // Satir fazla uzunsa alt satira inmek icin \n ekleyelim.
                     //afterPrefix = CutFile.addNewLineIfTooLong(afterPrefix, CutFile.MAX_CHAR_FOR_A_LINE);
-                    Label label = new Label(afterPrefix, tmpPenCurrent, tmpAngle, tmpOrigin, tmpCharSize.getWidth(), tmpCharSize.getHeight());
-                    labels.add(label);
-                    label = null;
+                    Lbl lbl = new Lbl(afterPrefix, tmpPenCurrent, tmpAngle, tmpOrigin, tmpCharSize.getWidth(), tmpCharSize.getHeight());
+                    labels.add(lbl);
+                    lbl = null;
                     break;
                 case "LO": // lbl origin
                     if (afterPrefix.isEmpty()) {

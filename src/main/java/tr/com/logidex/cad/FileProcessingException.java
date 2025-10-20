@@ -1,4 +1,4 @@
-package tr.com.logidex.cad.processor;
+package tr.com.logidex.cad;
 
 public class FileProcessingException extends Exception{
     public FileProcessingException(String s) {
