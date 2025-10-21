@@ -1,4 +1,5 @@
 package tr.com.logidex.cad.processor;
+
 import javafx.geometry.Point2D;
 import javafx.scene.shape.Line;
 import tr.com.logidex.cad.model.Lbl;
@@ -8,16 +9,38 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Processor for GGT format CAD files.
+ * Handles pattern parsing, label extraction, and coordinate scaling.
+ */
 public class GGTFileProcessor extends FileProcessor {
 
-    private List<Parca> parcalar;
-    private Parca aktifParca;
+    private static final double SCALE_BASE = 0.025;
+    private static final double SCALE_MULTIPLIER_1 = 1.016;
+    private static final double SCALE_MULTIPLIER_2 = 10.0f;
+
+    // Regex patterns
+    private static final Pattern PIECE_START_PATTERN = Pattern.compile("N(\\d+)\\*");
+    private static final Pattern LABEL_PATTERN = Pattern.compile("M31\\*X(-?\\d+)Y(-?\\d+)\\*([^*]+)\\*");
+    private static final Pattern COORDINATE_PATTERN = Pattern.compile("X(-?\\d+)Y(-?\\d+)");
+
+    // Command patterns for preprocessing
+    private static final String M19_DISCONTINUITY_PATTERN = "\\*M19(\\*X\\d+Y\\d+)\\*M15\\*X\\d+Y\\d+\\*M14";
+    private static final String M15_BETWEEN_M19_M31_PATTERN = "(\\*M19\\*X\\d+Y\\d+)\\*M15(\\*M31)";
+
+    // Commands
+    private static final String CMD_KNIFE_DOWN = "M14";
+    private static final String CMD_KNIFE_UP = "M15";
+    private static final String CMD_DELIMITER = "\\*";
+
+    private List<GGTPattern> patterns;
+    private GGTPattern activePattern;
     private final String fileContent;
 
     public GGTFileProcessor(String fileContent) {
         super(fileContent);
-        this.parcalar = new ArrayList<>();
-        this.aktifParca = null;
+        this.patterns = new ArrayList<>();
+        this.activePattern = null;
         this.fileContent = fileContent;
     }
 
@@ -33,296 +56,340 @@ public class GGTFileProcessor extends FileProcessor {
 
     @Override
     protected void interpretCommands() {
-        parcalar = parse(fileContent);
+        patterns = parse(fileContent);
 
-        for (Parca parca : parcalar) {
-            System.out.println("=== Parça: " + parca.getId() + " ===");
+        for (GGTPattern pattern : patterns) {
+            System.out.println("=== Pattern: " + pattern.getId() + " ===");
 
-            List<Line> parcaLines = parca.getLines();
-            List<Line> scaledLines = new ArrayList<>();
-
-            for (Line line : parcaLines) {
-                Line scaledLine = new Line(
-                        this.scale(line.getStartX()), this.scale(line.getStartY()),
-                        this.scale(line.getEndX()), this.scale(line.getEndY())
-                );
-                scaledLines.add(scaledLine);
-            }
+            List<Line> scaledLines = scaleLines(pattern.getLines());
 
             super.lines.addAll(scaledLines);
-            super.linesForClosedShapes.put(parca.getId(),scaledLines);
-            super.getGGTParcalar().add(parca);
+            super.linesForClosedShapes.put(pattern.getId(), scaledLines);
+            super.getGGTParcalar().add(pattern);
 
-
-
-            System.out.println("Line sayısı: " + scaledLines.size());
+            System.out.println("Line count: " + scaledLines.size());
             System.out.println("------------------------");
-            System.out.println(parca.getId() + " ->" + parca.getLabel());
-            //System.out.println(parca.getLines().get(parca.getLines().size() -1 ));
+            System.out.println(pattern.getId() + " -> " + pattern.getLabel());
         }
     }
 
-    public List<Parca> parse(String dosyaIcerigi) {
-        parcalar.clear();
+    // ==================== Parsing Methods ====================
 
-        // Parça başlangıçlarını bul
-        Pattern parcaBaslangiciPattern = Pattern.compile("N(\\d+)\\*");
-        Matcher parcaBaslangiciMatcher = parcaBaslangiciPattern.matcher(dosyaIcerigi);
+    /**
+     * Parses the GGT file content into a list of GGTPattern objects.
+     *
+     * @param fileContent The raw file content
+     * @return List of parsed patterns
+     */
+    public List<GGTPattern> parse(String fileContent) {
+        patterns.clear();
 
-        List<Integer> parcaBaslangicIndeksleri = new ArrayList<>();
-        List<String> parcaNolari = new ArrayList<>();
+        List<PatternLocation> patternLocations = findPatternLocations(fileContent);
 
-        while (parcaBaslangiciMatcher.find()) {
-            parcaBaslangicIndeksleri.add(parcaBaslangiciMatcher.start());
-            parcaNolari.add(parcaBaslangiciMatcher.group(1));
+        for (PatternLocation location : patternLocations) {
+            String patternContent = fileContent.substring(location.start, location.end);
+            System.out.println(patternContent + "\n");
+
+            activePattern = new GGTPattern(location.patternNumber);
+            patterns.add(activePattern);
+
+            parseLabels(patternContent, 0);
+            String preprocessedContent = preprocessCommands(patternContent);
+            parseCommands(preprocessedContent);
         }
 
-        // Her parçayı işle
-        for (int i = 0; i < parcaBaslangicIndeksleri.size(); i++) {
-            int baslangic = parcaBaslangicIndeksleri.get(i);
-            int bitis = (i < parcaBaslangicIndeksleri.size() - 1) ?
-                    parcaBaslangicIndeksleri.get(i + 1) : dosyaIcerigi.length();
-
-            Integer parcaNo = Integer.parseInt(parcaNolari.get(i));
-            String parcaIcerigi = dosyaIcerigi.substring(baslangic, bitis);
-            System.out.println(parcaIcerigi + "\n");
-
-            aktifParca = new Parca(parcaNo);
-            parcalar.add(aktifParca);
-
-
-            // Etiket bilgisini parse et
-            parseEtiket(parcaIcerigi,0);
-
-
-            parseKomutlar(removeM15BetweenM19AndM31(fixM19Discontinuities(parcaIcerigi)));
-
-
-        }
-
-        return parcalar;
+        return patterns;
     }
 
+    /**
+     * Finds all pattern locations in the file content.
+     *
+     * @param fileContent The file content to search
+     * @return List of pattern locations with start/end indices
+     */
+    private List<PatternLocation> findPatternLocations(String fileContent) {
+        List<PatternLocation> locations = new ArrayList<>();
+        Matcher matcher = PIECE_START_PATTERN.matcher(fileContent);
+
+        List<Integer> startIndices = new ArrayList<>();
+        List<Integer> patternNumbers = new ArrayList<>();
+
+        while (matcher.find()) {
+            startIndices.add(matcher.start());
+            patternNumbers.add(Integer.parseInt(matcher.group(1)));
+        }
+
+        for (int i = 0; i < startIndices.size(); i++) {
+            int start = startIndices.get(i);
+            int end = (i < startIndices.size() - 1) ? startIndices.get(i + 1) : fileContent.length();
+            locations.add(new PatternLocation(patternNumbers.get(i), start, end));
+        }
+
+        return locations;
+    }
+
+    /**
+     * Preprocesses commands to fix known GGT format issues.
+     *
+     * @param content The raw pattern content
+     * @return Preprocessed content
+     */
+    private String preprocessCommands(String content) {
+        String fixed = fixM19Discontinuities(content);
+        return removeM15BetweenM19AndM31(fixed);
+    }
+
+    /**
+     * Fixes M19 discontinuities in the GGT format.
+     * Pattern: M19*X[num]Y[num]*M15*X[num]Y[num]*M14
+     * Removes M19, M15, and M14, keeping only coordinates.
+     *
+     * @param input The input string
+     * @return Fixed string
+     */
     public static String fixM19Discontinuities(String input) {
-        // Pattern: M19*X[sayı]Y[sayı]*M15*X[sayı]Y[sayı]*M14
-        // Sadece M19, M15 ve M14'ü sil, koordinatları koru
-        String pattern = "\\*M19(\\*X\\d+Y\\d+)\\*M15\\*X\\d+Y\\d+\\*M14";
-
-        // $1 ile sadece M19'dan sonraki koordinatı koru
-        return input.replaceAll(pattern, "$1");
+        return input.replaceAll(M19_DISCONTINUITY_PATTERN, "$1");
     }
 
+    /**
+     * Removes M15 commands between M19 and M31.
+     * Pattern: *M19*X[num]Y[num]*M15*M31
+     *
+     * @param input The input string
+     * @return Fixed string
+     */
     public static String removeM15BetweenM19AndM31(String input) {
-        // M19 + koordinat + M15 + M31 pattern'ini bul
-        // M15'i sil, gerisini koru
-        String pattern = "(\\*M19\\*X\\d+Y\\d+)\\*M15(\\*M31)";
-
-        // $1 = *M19*X6346Y4285
-        // $2 = *M31
-        return input.replaceAll(pattern, "$1$2");
+        return input.replaceAll(M15_BETWEEN_M19_M31_PATTERN, "$1$2");
     }
 
+    // ==================== Label Parsing ====================
 
-    private void parseEtiket(String parcaIcerigi,int searchIndex) {
+    /**
+     * Recursively parses labels (M31 commands) from piece content.
+     *
+     * @param pieceContent The piece content to parse
+     * @param searchIndex The index to start searching from
+     */
+    private void parseLabels(String pieceContent, int searchIndex) {
+        Matcher matcher = LABEL_PATTERN.matcher(pieceContent);
 
-
-        // M31 ile başlayan etiket pattern'i: M31*X<sayı>Y<sayı>*<metin>*
-
-
-        Pattern etiketPattern = Pattern.compile("M31\\*X(-?\\d+)Y(-?\\d+)\\*([^*]+)\\*");
-        Matcher etiketMatcher = etiketPattern.matcher(parcaIcerigi);
-
-        if (etiketMatcher.find(searchIndex)) {
+        if (matcher.find(searchIndex)) {
             try {
-                double x = Double.parseDouble(etiketMatcher.group(1));
-                double y = Double.parseDouble(etiketMatcher.group(2));
-                String etiketMetni = etiketMatcher.group(3);
+                double x = Double.parseDouble(matcher.group(1));
+                double y = Double.parseDouble(matcher.group(2));
+                String labelText = matcher.group(3);
 
+                activePattern.getParcaninEtiketleri().put(labelText, new Point2D(x, y));
 
-
-
-               aktifParca.getParcaninEtiketleri().put(etiketMetni,new Point2D(x,y));
-
-
-                int end = etiketMatcher.end();
-                parseEtiket(parcaIcerigi,end); // Check whether there is  another M31 command in the pattern.
-
-
+                int end = matcher.end();
+                parseLabels(pieceContent, end);
             } catch (NumberFormatException e) {
-                System.err.println("Etiket parse hatası: " + e.getMessage());
+                System.err.println("Label parse error: " + e.getMessage());
             }
         }
 
-
-        assignALabel();
-
-
+        assignLabel();
     }
 
-    private void assignALabel() {
+    /**
+     * Assigns a consolidated label to the active piece from all label text entries.
+     */
+    private void assignLabel() {
+        Map<String, Point2D> labelData = activePattern.getLabelTextPositions();
 
-        var textAndPositions = aktifParca.getParcaninEtiketleri();
-
-
-        if(! textAndPositions.isEmpty()){
-
+        if (!labelData.isEmpty()) {
             StringBuilder labelTextBuilder = new StringBuilder();
+            AtomicReference<Point2D> position = new AtomicReference<>(new Point2D(0, 0));
 
-            AtomicReference<Point2D> pos = new AtomicReference<>(new Point2D(0, 0));
-            textAndPositions.forEach((k,v) -> {
-                labelTextBuilder.append(k+"\n");
-                pos.set(v);
-
+            labelData.forEach((text, pos) -> {
+                labelTextBuilder.append(text).append("\n");
+                position.set(pos);
             });
 
-            Lbl createdLabel = new Lbl(labelTextBuilder.toString(), pos.get(),0,2,12,12);
-
-
-            aktifParca.setEtiket(createdLabel);
-
-
-
+            Lbl createdLabel = new Lbl(labelTextBuilder.toString(), position.get(), 0, 2, 12, 12);
+            activePattern.setLabel(createdLabel);
         }
     }
 
+    // ==================== Command Parsing ====================
 
+    /**
+     * Parses drawing commands (M14/M15 knife up/down and coordinates) from piece content.
+     *
+     * @param pieceContent The preprocessed piece content
+     */
+    private void parseCommands(String pieceContent) {
+        String[] commands = pieceContent.split(CMD_DELIMITER);
 
-    private void parseKomutlar(String parcaIcerigi) {
-        String[] komutlar = parcaIcerigi.split("\\*");
+        Point2D currentPosition = null;
+        boolean cutting = false;
+        List<Point2D> cuttingPoints = new ArrayList<>();
 
-        Point2D mevcutPozisyon = null;
-        boolean kesmeDurum = false;
+        for (String command : commands) {
+            if (command == null || command.trim().isEmpty()) {
+                continue;
+            }
 
-        // Her M14-M15 bloğu için ayrı çizim yap
-        List<Point2D> kesmeNoktaları = new ArrayList<>();
+            command = command.trim();
 
-        for (String komut : komutlar) {
-            if (komut == null || komut.trim().isEmpty()) continue;
-            komut = komut.trim();
-
-            if (komut.equals("M14")) {
-                // Kesme başlıyor
-                kesmeDurum = true;
-                kesmeNoktaları.clear();
-
-            } else if (komut.equals("M15")) {
-                // Kesme bitiyor, çizgileri oluştur
-                if (kesmeDurum && kesmeNoktaları.size() > 1) {
-                    // Sırayla çizgileri oluştur
-                    for (int j = 0; j < kesmeNoktaları.size() - 1; j++) {
-                        Point2D baslangic = kesmeNoktaları.get(j);
-                        Point2D bitis = kesmeNoktaları.get(j + 1);
-                        aktifParca.cizgiEkle(baslangic, bitis);
-                    }
-
-                    // Şekli kapat
-                    Point2D ilkNokta = kesmeNoktaları.get(0);
-                    Point2D sonNokta = kesmeNoktaları.get(kesmeNoktaları.size() - 1);
-
-                    // Eğer şekil kapalı değilse kapat
-                    if (!ilkNokta.equals(sonNokta)) {
-                        aktifParca.cizgiEkle(sonNokta, ilkNokta);
-                    }
+            if (command.equals(CMD_KNIFE_DOWN)) {
+                cutting = true;
+                cuttingPoints.clear();
+            } else if (command.equals(CMD_KNIFE_UP)) {
+                if (cutting && cuttingPoints.size() > 1) {
+                    createLinesFromPoints(cuttingPoints);
+                    closeShapeIfNeeded(cuttingPoints);
                 }
-
-                kesmeDurum = false;
-                kesmeNoktaları.clear();
-
-            } else if (komut.startsWith("X") && komut.contains("Y")) {
-                // Koordinat
-                Point2D yeniPozisyon = parseKoordinat(komut);
-
-                if (yeniPozisyon != null) {
-                    if (kesmeDurum) {
-                        kesmeNoktaları.add(yeniPozisyon);
+                cutting = false;
+                cuttingPoints.clear();
+            } else if (command.startsWith("X") && command.contains("Y")) {
+                Point2D newPosition = parseCoordinate(command);
+                if (newPosition != null) {
+                    if (cutting) {
+                        cuttingPoints.add(newPosition);
                     }
-                    mevcutPozisyon = yeniPozisyon;
+                    currentPosition = newPosition;
                 }
             }
-            // Diğer komutları atla (M31, D2, renk bilgileri vs.)
         }
     }
 
-    private Point2D parseKoordinat(String komut) {
-        Pattern koordinatPattern = Pattern.compile("X(-?\\d+)Y(-?\\d+)");
-        Matcher koordinatMatcher = koordinatPattern.matcher(komut);
+    /**
+     * Creates lines connecting consecutive points.
+     *
+     * @param points The list of points to connect
+     */
+    private void createLinesFromPoints(List<Point2D> points) {
+        for (int i = 0; i < points.size() - 1; i++) {
+            Point2D start = points.get(i);
+            Point2D end = points.get(i + 1);
+            activePattern.addLine(start, end);
+        }
+    }
 
-        if (koordinatMatcher.find()) {
+    /**
+     * Closes the shape by connecting the last point to the first if they're not equal.
+     *
+     * @param points The list of points forming the shape
+     */
+    private void closeShapeIfNeeded(List<Point2D> points) {
+        Point2D firstPoint = points.get(0);
+        Point2D lastPoint = points.get(points.size() - 1);
+
+        if (!firstPoint.equals(lastPoint)) {
+            activePattern.addLine(lastPoint, firstPoint);
+        }
+    }
+
+    /**
+     * Parses a coordinate command (X[num]Y[num]).
+     *
+     * @param command The command string
+     * @return The parsed Point2D, or null if parsing fails
+     */
+    private Point2D parseCoordinate(String command) {
+        Matcher matcher = COORDINATE_PATTERN.matcher(command);
+
+        if (matcher.find()) {
             try {
-                double x = Double.parseDouble(koordinatMatcher.group(1));
-                double y = Double.parseDouble(koordinatMatcher.group(2));
+                double x = Double.parseDouble(matcher.group(1));
+                double y = Double.parseDouble(matcher.group(2));
                 return new Point2D(x, y);
             } catch (NumberFormatException e) {
-                System.err.println("Koordinat parse hatası: " + komut);
+                System.err.println("Coordinate parse error: " + command);
                 return null;
             }
         }
         return null;
     }
 
-    public List<Parca> getParcalar() {
-        return parcalar;
+    // ==================== Utility Methods ====================
+
+    /**
+     * Scales all lines using the GGT-specific scale factor.
+     *
+     * @param originalLines The original lines to scale
+     * @return List of scaled lines
+     */
+    private List<Line> scaleLines(List<Line> originalLines) {
+        List<Line> scaledLines = new ArrayList<>();
+
+        for (Line line : originalLines) {
+            Line scaledLine = new Line(
+                    this.scale(line.getStartX()),
+                    this.scale(line.getStartY()),
+                    this.scale(line.getEndX()),
+                    this.scale(line.getEndY())
+            );
+            scaledLines.add(scaledLine);
+        }
+
+        return scaledLines;
     }
 
-    public Parca getParcaById(String id) {
-        for (Parca parca : parcalar) {
-            if (parca.getId().equals(id)) {
-                return parca;
+    @Override
+    protected double scale(double number) {
+        double value = number * SCALE_BASE * SCALE_MULTIPLIER_1;
+        return value * SCALE_MULTIPLIER_2;
+    }
+
+    /**
+     * Gets all parsed patterns.
+     *
+     * @return List of all patterns
+     */
+    public List<GGTPattern> getPatterns() {
+        return patterns;
+    }
+
+    /**
+     * Turkish compatibility method for getPatterns.
+     *
+     * @return List of all patterns
+     */
+    public List<GGTPattern> getParcalar() {
+        return getPatterns();
+    }
+
+    /**
+     * Gets a pattern by its ID.
+     *
+     * @param id The pattern ID to search for
+     * @return The pattern with the given ID, or null if not found
+     */
+    public GGTPattern getPatternById(String id) {
+        for (GGTPattern pattern : patterns) {
+            if (pattern.getId().equals(id)) {
+                return pattern;
             }
         }
         return null;
     }
 
-    @Override
-    protected double scale(double number) {
-        double value = number * 0.025 * 1.016;
-        return value * 10f;
-    }
-}
-
-class Parca {
-    private Integer id;
-    private List<Line> lines;
-    private Lbl etiket;
-    private final Map<String,Point2D> parcaninEtiketleri = new LinkedHashMap<>();
-
-    public Parca(Integer id) {
-        this.id = id;
-        this.lines = new ArrayList<>();
-        this.etiket = null;
+    /**
+     * Turkish compatibility method for getPatternById.
+     *
+     * @param id The pattern ID to search for
+     * @return The pattern with the given ID, or null if not found
+     */
+    public GGTPattern getParcaById(String id) {
+        return getPatternById(id);
     }
 
-    public Integer getId() {
-        return id;
-    }
+    // ==================== Helper Classes ====================
 
-    public void cizgiEkle(Point2D baslangic, Point2D bitis) {
-        if (!baslangic.equals(bitis)) {
-            Line line = new Line(
-                    baslangic.getX(), baslangic.getY(),
-                    bitis.getX(), bitis.getY()
-            );
-            lines.add(line);
+    /**
+     * Represents the location of a pattern in the file content.
+     */
+    private static class PatternLocation {
+        final int patternNumber;
+        final int start;
+        final int end;
+
+        PatternLocation(int patternNumber, int start, int end) {
+            this.patternNumber = patternNumber;
+            this.start = start;
+            this.end = end;
         }
     }
-
-    public List<Line> getLines() {
-        return lines;
-    }
-
-    public Lbl getLabel() {
-        return etiket;
-
-    }
-
-    public void setEtiket(Lbl label) {
-        this.etiket = label;
-    }
-
-
-    public Map<String,Point2D> getParcaninEtiketleri() {
-        return parcaninEtiketleri;
-    }
 }
-
-

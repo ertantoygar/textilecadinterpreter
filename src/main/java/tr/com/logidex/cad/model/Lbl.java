@@ -1,150 +1,162 @@
 package tr.com.logidex.cad.model;
 
-
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Point2D;
 import tr.com.logidex.cad.processor.FileProcessor;
 import tr.com.logidex.cad.Unit;
-import tr.com.logidex.cad.Util;
+import tr.com.logidex.cad.helper.Util;
 
 import java.text.DecimalFormat;
 
+/**
+ * Represents a label in a CAD system with position, rotation, and dimension properties.
+ * Labels can be associated with closed shapes and support position tracking and conversion.
+ */
+public class Lbl {
 
-public class Lbl  {
+    // Formatting
+    private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("0.00");
+    private static final String POSITION_FORMAT = "%,.2f";
 
-	private String text;
-	private double angle, origin, width, height;
+    // Core properties
+    private String text;
+    private final double angle;
+    private final double origin;
+    private final double width;
+    private final double height;
 
-	private SimpleObjectProperty<Point2D> position = new SimpleObjectProperty<>(new Point2D(0,0));
+    // Position tracking
+    private final SimpleObjectProperty<Point2D> position;
+    private final Point2D originalXY;
 
-	//private String printablePosition = "";
+    // Associated shape
+    private ClosedShape shape;
 
-	private Point2D originalXY;// Incoming from the file.Don't create a setter.
+    public Lbl(String text, Point2D pos, double angle, double origin, double width, double height) {
+        this.text = text;
+        this.position = new SimpleObjectProperty<>(pos);
+        this.angle = angle;
+        this.origin = origin;
+        this.width = width;
+        this.height = height;
+        this.originalXY = new Point2D(pos.getX(), pos.getY());
+    }
 
-	private ClosedShape shape;
+    // ==================== Position Management ====================
 
+    public Point2D getPosition() {
+        return position.get();
+    }
 
+    public void setPosition(Point2D position) {
+        this.position.set(position);
+    }
 
-	public Lbl(String text, Point2D pos, double angle, double origin, double width, double height) {
-		this.text = text;
-		position.set(pos);
-		this.angle = angle;
-		this.origin = origin;
-		this.width = width;
-		this.height = height;
-		originalXY = new Point2D(pos.getX(), pos.getY());
-	}
+    public SimpleObjectProperty<Point2D> positionProperty() {
+        return position;
+    }
 
-	public SimpleObjectProperty<Point2D> positionProperty() {
-		return position;
-	}
+    public Point2D getOriginalXY() {
+        return originalXY;
+    }
 
+    /**
+     * Offsets the label position by the specified deltas.
+     *
+     * @param xOffset The offset to apply to the x-coordinate
+     * @param yOffset The offset to apply to the y-coordinate
+     */
+    public void offsetLabelPosition(double xOffset, double yOffset) {
+        Point2D currentPos = position.get();
+        position.set(new Point2D(currentPos.getX() + xOffset, currentPos.getY() + yOffset));
+    }
 
-	public void setText(String text) {
-		this.text = text;
-	}
+    /**
+     * Changes the label position to a new point.
+     *
+     * @param newPoint The new position for the label
+     */
+    public void changeLabelPosition(Point2D newPoint) {
+        position.set(newPoint);
+    }
 
+    /**
+     * Checks if the label position has been modified from its original position.
+     *
+     * @return true if the position has changed, false otherwise
+     */
+    public boolean isLabelPositionChanged() {
+        return position.get().distance(originalXY) != 0;
+    }
 
-	public String getText() {
-		return text;
-	}
+    // ==================== Position Formatting ====================
 
+    /**
+     * Returns a human-readable string representation of the current position,
+     * with unit conversion applied based on the current file processor unit setting.
+     *
+     * @return Formatted position string (e.g., "x=10.50 y=20.75")
+     */
+    public String getPrintablePosition() {
+        Point2D currentPos = position.get();
+        double x = currentPos.getX();
+        double y = currentPos.getY();
 
-	public Point2D getPosition() {
-		return position.get();
-	}
+        if (FileProcessor.unit == Unit.IN) {
+            x = Util.mmToInch(x);
+            y = Util.mmToInch(y);
+        }
 
-	public void setPosition(Point2D position) {
-		this.position.set(position);
-	}
+        return String.format("x=%s y=%s",
+                DECIMAL_FORMAT.format(x),
+                DECIMAL_FORMAT.format(y));
+    }
 
+    // ==================== Text Management ====================
 
+    public String getText() {
+        return text;
+    }
 
+    public void setText(String text) {
+        this.text = text;
+    }
 
+    // ==================== Dimension Properties ====================
 
-	public double getAngle() {
-		return angle;
-	}
+    public double getAngle() {
+        return angle;
+    }
 
+    public double getOrigin() {
+        return origin;
+    }
 
+    public double getWidth() {
+        return width;
+    }
 
-	public double getOrigin() {
-		return origin;
-	}
+    public double getHeight() {
+        return height;
+    }
 
+    // ==================== Shape Association ====================
 
+    public ClosedShape getShape() {
+        return shape;
+    }
 
-	public double getWidth() {
-		return width;
-	}
+    public void setShape(ClosedShape shape) {
+        this.shape = shape;
+    }
 
+    // ==================== Object Methods ====================
 
-
-	public double getHeight() {
-		return height;
-	}
-
-
-
-	public Point2D getOriginalXY() {
-		return originalXY;
-	}
-
-
-	public String getPrintablePosition() {
-		DecimalFormat df = new DecimalFormat("0.00");
-		StringBuilder sb = new StringBuilder();
-		sb.append("x=");
-
-		sb.append(df.format( FileProcessor.unit== Unit.IN? Util.mmToInch(position.get().getX()):position.get().getX()));
-		sb.append(" ");
-		sb.append("y=");
-		sb.append(df.format( FileProcessor.unit==Unit.IN? Util.mmToInch(position.get().getY()):position.get().getY()));
-		return sb.toString();
-	}
-
-	public void offsetLabelPosition(double xOffset, double yOffset) {
-
-		position.set(new Point2D(position.get().getX() + xOffset, position.get().getY() + yOffset));
-
-
-	}
-
-
-
-	public void changeLabelPosition(Point2D newPoint) {
-
-		position.set(newPoint);
-
-	}
-
-
-
-	/**
-	 * etiket pozisyonu dosyadan okunandan farkli mi? Bizim tarafimizdan
-	 * degistirilmis mi?
-	 * 
-	 * @return
-	 */
-	public boolean isLabelPositionChanged() {
-		return position.get().distance(originalXY) != 0 ? true : false;
-	}
-
-
-
-	@Override
-	public String toString() {
-
-		return text + "\n" + "[x=" + String.format("%,.2f", position.get().getX())+" , y="+String.format("%,.2f", position.get().getY()) + "]";
-	}
-
-
-	public void setShape(ClosedShape shape) {
-		this.shape = shape;
-	}
-
-
-	public ClosedShape getShape() {
-		return shape;
-	}
+    @Override
+    public String toString() {
+        Point2D currentPos = position.get();
+        String formattedX = String.format(POSITION_FORMAT, currentPos.getX());
+        String formattedY = String.format(POSITION_FORMAT, currentPos.getY());
+        return text + "\n[x=" + formattedX + " , y=" + formattedY + "]";
+    }
 }

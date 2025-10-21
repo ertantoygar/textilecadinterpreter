@@ -1,4 +1,4 @@
-package tr.com.logidex.cad;
+package tr.com.logidex.cad.processor;
 
 public enum FlipHorizontally {
     YES,

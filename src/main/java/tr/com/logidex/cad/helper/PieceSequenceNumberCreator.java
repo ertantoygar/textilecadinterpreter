@@ -1,9 +1,11 @@
-package tr.com.logidex.cad;
+package tr.com.logidex.cad.helper;
+
 public final class PieceSequenceNumberCreator {
 
-    private static int sequenceNumber=1;
+    private static int sequenceNumber = 1;
 
-    private PieceSequenceNumberCreator() {}
+    private PieceSequenceNumberCreator() {
+    }
 
 
     public static int getSequenceNumber() {
@@ -11,6 +13,6 @@ public final class PieceSequenceNumberCreator {
     }
 
     public static void resetCounter() {
-        sequenceNumber=1;
+        sequenceNumber = 1;
     }
 }

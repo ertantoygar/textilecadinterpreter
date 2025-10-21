@@ -1,4 +1,4 @@
-package tr.com.logidex.cad;
+package tr.com.logidex.cad.model;
 
 public class CoordinateBounds {
     private final double minX;
