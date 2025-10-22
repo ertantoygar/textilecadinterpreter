@@ -106,21 +106,11 @@ public class SourceFile {
     private FileProcessor createProcessor(FileExtension extension, String fileContent)
             throws Exception {
 
-        switch (extension) {
-            case HPGL:
-            case PLT:
-            case HPG:
-                return new HPGLFileProcessor(fileContent);
+        return switch (extension) {
+            case HPGL,PLT,HPG ->new HPGLFileProcessor(fileContent);
+            case CUT,CAM ->new GerberFileProcessor(fileContent);
+            case GGT ->new GGTFileProcessor(fileContent);
+        };
 
-            case CUT:
-            case CAM:
-                return new GerberFileProcessor(fileContent);
-
-            case GGT:
-                return new GGTFileProcessor(fileContent);
-
-            default:
-                throw new Exception("Unsupported file extension: " + extension);
-        }
     }
 }
