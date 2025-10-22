@@ -14,7 +14,7 @@ import java.util.List;
  * Processor for HPGL format CAD files (.HPGL, .PLT, .HPG extensions).
  * Handles pen up/down commands and label positioning.
  */
-public class HPGLFileProcessor extends FileProcessor {
+public final class HPGLFileProcessor extends FileProcessor {
 
     private static final int COMMAND_PREFIX_LENGTH = 2;
     private static final String COMMAND_DELIMITER = ",";

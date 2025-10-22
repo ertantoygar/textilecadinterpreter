@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  * Processor for GGT format CAD files.
  * Handles pattern parsing, label extraction, and coordinate scaling.
  */
-public class GGTFileProcessor extends FileProcessor {
+public final  class GGTFileProcessor extends FileProcessor {
 
     private static final double SCALE_BASE = 0.025;
     private static final double SCALE_MULTIPLIER_1 = 1.016;

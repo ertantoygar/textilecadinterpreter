@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * Abstract base class for processing CAD files of different formats.
  * Handles common operations like shape creation, label organization, and transformations.
  */
-public abstract class FileProcessor {
+public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFileProcessor,HPGLFileProcessor {
 
     // Constants
     public static final String REFERENCE_SIGN = "+";

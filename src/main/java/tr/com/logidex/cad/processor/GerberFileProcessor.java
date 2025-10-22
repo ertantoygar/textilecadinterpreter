@@ -13,7 +13,7 @@ import java.util.List;
  * Processor for Gerber format CAD files (.CUT, .CAM extensions).
  * Handles M14/M15 (knife down/up) commands and M31 label commands.
  */
-public class GerberFileProcessor extends FileProcessor {
+public final class GerberFileProcessor extends FileProcessor {
 
     private static final String LABEL_COMMAND_ATTACHED = "M31";
     private static final String LABEL_COMMAND_INDEPENDENT = "M31";
