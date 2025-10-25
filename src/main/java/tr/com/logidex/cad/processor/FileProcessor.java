@@ -55,6 +55,8 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
         initSplitRegex();
     }
 
+
+
     // ==================== Abstract Methods ====================
 
     protected abstract void initUnwantedChars();
@@ -148,6 +150,14 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
         String formattedW = String.format("%.2f", drawingDimensions.getWidth());
         String formattedH = String.format("%.2f", drawingDimensions.getHeight());
         return "L: " + formattedW + ", W: " + formattedH;
+    }
+
+    public FlipHorizontally getFlipHorizontally() {
+        return flipHorizontally;
+    }
+
+    public FlipVertically getFlipVertically() {
+        return flipVertically;
     }
 
     // ==================== Processing Methods ====================
