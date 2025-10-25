@@ -10,6 +10,8 @@ import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 import tr.com.logidex.cad.model.CoordinateBounds;
 
+
+import java.awt.geom.Line2D;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -343,5 +345,36 @@ public class Util {
             ret[i] = doubles.get(i).doubleValue();
         }
         return ret;
+    }
+
+    public static Line2D.Double rotateLine(Line2D.Double line, int degrees) {
+        // Normalize angle to 0, 90, 180, or 270
+        int normalizedAngle = ((degrees % 360) + 360) % 360;
+
+        double x1 = line.getX1();
+        double y1 = line.getY1();
+        double x2 = line.getX2();
+        double y2 = line.getY2();
+
+        switch (normalizedAngle) {
+            case 0:
+                // No rotation
+                return new Line2D.Double(x1, y1, x2, y2);
+
+            case 90:
+                // 90° clockwise: (x, y) → (y, -x)
+                return new Line2D.Double(y1, -x1, y2, -x2);
+
+            case 180:
+                // 180°: (x, y) → (-x, -y)
+                return new Line2D.Double(-x1, -y1, -x2, -y2);
+
+            case 270:
+                // 270° clockwise (or 90° counter-clockwise): (x, y) → (-y, x)
+                return new Line2D.Double(-y1, x1, -y2, x2);
+
+            default:
+                throw new IllegalArgumentException("Only straight angles (0, 90, 180, 270) are supported. Got: " + degrees);
+        }
     }
 }

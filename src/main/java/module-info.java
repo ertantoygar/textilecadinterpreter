@@ -4,6 +4,7 @@ module tr.com.logidex.cad.logidexcadinterpreter {
     requires java.sql;
     requires javafx.graphics;
     requires javafx.base;
+    requires java.desktop;
 
 
     exports tr.com.logidex.cad.helper;
