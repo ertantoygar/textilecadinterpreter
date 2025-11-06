@@ -33,15 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * JavaFX Application to visualize ClosedShape objects with zoom and pan capabilities.
- *
- * Features:
- * - Mouse wheel zoom (scroll up to zoom in, scroll down to zoom out)
- * - Pan by dragging with left mouse button
- * - Reset view button
- * - Zoom in/out buttons
- * - Displays shape centers as small circles
- * - Shows zoom level indicator
+ * JavaFX Application to visualize ClosedShape objects with zoom, pan, and selection capabilities.
  */
 public class ShapeVisualizerApp extends Application {
 
@@ -71,8 +63,13 @@ public class ShapeVisualizerApp extends Application {
     private Label animationProgressLabel;
     private boolean showLabels = true;
     private boolean showCenters = true;
+    private boolean fillShapes = false;
     private CheckBox showLabelsCheckbox;
     private CheckBox showCentersCheckbox;
+    private CheckBox fillShapesCheckbox;
+
+    // Selection
+    private ClosedShape selectedShape = null;
 
     // Animation properties
     private boolean isAnimating = false;
@@ -110,7 +107,7 @@ public class ShapeVisualizerApp extends Application {
         root.setBottom(createStatusBar());
 
         // NOW load and initialize shapes (after UI components are created)
-        FileProcessor fileProcessor = new GerberFileProcessor(Files.readString(Path.of("GEMINI.cut"), StandardCharsets.UTF_8));
+        FileProcessor fileProcessor = new HPGLFileProcessor(Files.readString(Path.of("AG-1009-2.plt"), StandardCharsets.UTF_8));
         fileProcessor.startFileProcessing();
         setShapes(fileProcessor.getShapes());
 
@@ -161,12 +158,19 @@ public class ShapeVisualizerApp extends Application {
             draw();
         });
 
+        fillShapesCheckbox = new CheckBox("Fill Shapes");
+        fillShapesCheckbox.setSelected(false);
+        fillShapesCheckbox.setOnAction(e -> {
+            fillShapes = fillShapesCheckbox.isSelected();
+            draw();
+        });
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         toolbar.getChildren().addAll(
                 zoomInBtn, zoomOutBtn, resetBtn, fitBtn, spacer,
-                showCentersCheckbox, showLabelsCheckbox, zoomLabel
+                showCentersCheckbox, showLabelsCheckbox, fillShapesCheckbox, zoomLabel
         );
 
         return toolbar;
@@ -223,7 +227,7 @@ public class ShapeVisualizerApp extends Application {
         shapeCountLabel = new Label("Shapes: 0");
 
         Label instructions = new Label(
-                "Controls: Mouse Wheel = Zoom | Left Click + Drag = Pan"
+                "Controls: Mouse Wheel = Zoom | Left Click + Drag = Pan | Click Shape Border = Select"
         );
 
         Region spacer = new Region();
@@ -243,9 +247,36 @@ public class ShapeVisualizerApp extends Application {
             zoomAt(mouseX, mouseY, zoomDelta);
         });
 
-        // Mouse press - start panning
+        // Mouse press - check for shape selection or start panning
         canvas.setOnMousePressed(event -> {
             if (event.getButton() == MouseButton.PRIMARY) {
+                // Check if we're clicking near any shape border
+                Point2D clickPoint = new Point2D(
+                        (event.getX() - offsetX) / zoom,
+                        (event.getY() - offsetY) / zoom
+                );
+
+                ClosedShape clickedShape = findShapeNearClick(clickPoint, 10.0 / zoom);
+                if (clickedShape != null) {
+                    // Toggle selection
+                    if (selectedShape == clickedShape) {
+                        selectedShape = null;
+                        System.out.println("Shape deselected");
+                    } else {
+                        selectedShape = clickedShape;
+                        System.out.println("=== SHAPE SELECTED ===");
+                        System.out.println("Shape ID: " + clickedShape.getId());
+                        System.out.println("Label: " + clickedShape.getLabel());
+                        System.out.println("Center: " + clickedShape.getCenter());
+                        System.out.println("Number of lines: " + clickedShape.getLines().size());
+                        System.out.println("Bounds: " + clickedShape.getBounds());
+                        System.out.println("======================");
+                    }
+                    draw();
+                    return; // Don't start panning if we clicked a shape
+                }
+
+                // Start panning
                 lastMouseX = event.getX();
                 lastMouseY = event.getY();
                 isPanning = true;
@@ -289,6 +320,76 @@ public class ShapeVisualizerApp extends Application {
                 canvas.setCursor(javafx.scene.Cursor.DEFAULT);
             }
         });
+    }
+
+    /**
+     * Find a shape whose border is near the click point
+     */
+    private ClosedShape findShapeNearClick(Point2D clickPoint, double threshold) {
+        if (shapes == null) return null;
+
+        // Check shapes in reverse order (top to bottom in rendering)
+        for (int i = shapes.size() - 1; i >= 0; i--) {
+            ClosedShape shape = shapes.get(i);
+
+            // Check if click is near any line in this shape
+            for (Line line : shape.getLines()) {
+                double distance = distanceToLineSegment(
+                        clickPoint,
+                        new Point2D(line.getStartX(), line.getStartY()),
+                        new Point2D(line.getEndX(), line.getEndY())
+                );
+
+                if (distance <= threshold) {
+                    return shape;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Calculate the distance from a point to a line segment
+     */
+    private double distanceToLineSegment(Point2D point, Point2D lineStart, Point2D lineEnd) {
+        double x = point.getX();
+        double y = point.getY();
+        double x1 = lineStart.getX();
+        double y1 = lineStart.getY();
+        double x2 = lineEnd.getX();
+        double y2 = lineEnd.getY();
+
+        double A = x - x1;
+        double B = y - y1;
+        double C = x2 - x1;
+        double D = y2 - y1;
+
+        double dot = A * C + B * D;
+        double lenSq = C * C + D * D;
+        double param = -1;
+
+        if (lenSq != 0) {
+            param = dot / lenSq;
+        }
+
+        double xx, yy;
+
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+
+        double dx = x - xx;
+        double dy = y - yy;
+
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     private void zoomAt(double pivotX, double pivotY, double factor) {
@@ -564,8 +665,37 @@ public class ShapeVisualizerApp extends Application {
             color = Color.rgb(100, 150, 255, 0.5);
         }
 
-        gc.setStroke(color);
-        gc.setLineWidth(2.0 / zoom);
+        boolean isSelected = (shape == selectedShape);
+
+        // If fillShapes is enabled, fill the polygon
+        if (fillShapes) {
+            List<Line> lines = shape.getLines();
+            if (lines.size() >= 3) {
+                // Build polygon points from lines
+                double[] xPoints = new double[lines.size()];
+                double[] yPoints = new double[lines.size()];
+
+                for (int i = 0; i < lines.size(); i++) {
+                    Line line = lines.get(i);
+                    xPoints[i] = transformX(line.getStartX());
+                    yPoints[i] = transformY(line.getStartY());
+                }
+
+                // Fill the polygon
+                Color fillColor = isSelected
+                        ? Color.rgb(255, 200, 0, 0.7)  // Brighter yellow for selected
+                        : Color.color(color.getRed(), color.getGreen(), color.getBlue(), 0.3);
+                gc.setFill(fillColor);
+                gc.fillPolygon(xPoints, yPoints, lines.size());
+            }
+        }
+
+        // Draw outline (always draw outline)
+        Color strokeColor = isSelected ? Color.ORANGE : color;
+        double lineWidth = isSelected ? 4.0 / zoom : 2.0 / zoom;
+
+        gc.setStroke(strokeColor);
+        gc.setLineWidth(lineWidth);
 
         List<Line> lines = shape.getLines();
         for (Line line : lines) {
