@@ -22,9 +22,19 @@ public class SourceFile {
     private static final String DEFAULT_FILE_NAME = "-----";
 
     private final StringProperty activeFileName;
+    private final PlotterScale plotterScale ;
+
+    public SourceFile(PlotterScale plotterScale) {
+        this.activeFileName = new SimpleStringProperty(DEFAULT_FILE_NAME);
+        this.plotterScale = plotterScale == null?PlotterScale.DEFAULT:plotterScale;
+        FileProcessor.plotterScale = this.plotterScale;
+
+    }
 
     public SourceFile() {
         this.activeFileName = new SimpleStringProperty(DEFAULT_FILE_NAME);
+        this.plotterScale = PlotterScale.DEFAULT;
+        FileProcessor.plotterScale = this.plotterScale;
     }
 
     // ==================== Property Accessors ====================
@@ -36,6 +46,11 @@ public class SourceFile {
     public String getActiveFileName() {
         return activeFileName.get();
     }
+
+    public  PlotterScale getPlotterScale() {
+        return plotterScale;
+    }
+
 
     // ==================== File Processing ====================
 
@@ -53,6 +68,7 @@ public class SourceFile {
         validateInputs(file, extension, unit);
 
         FileProcessor.unit = unit;
+
 
         try {
             String fileContent = readFileContent(file);

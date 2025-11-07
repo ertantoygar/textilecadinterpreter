@@ -2,6 +2,7 @@ package tr.com.logidex.cad.processor;
 
 import javafx.geometry.Point2D;
 import javafx.scene.shape.Line;
+import tr.com.logidex.cad.PlotterScale;
 import tr.com.logidex.cad.model.Lbl;
 
 import java.util.*;
@@ -16,7 +17,6 @@ import java.util.regex.Pattern;
 public final  class GGTFileProcessor extends FileProcessor {
 
     private static final double SCALE_BASE = 0.025;
-    private static final double SCALE_MULTIPLIER_1 = 1.016;
     private static final double SCALE_MULTIPLIER_2 = 10.0f;
 
     // Regex patterns
@@ -329,7 +329,7 @@ public final  class GGTFileProcessor extends FileProcessor {
 
     @Override
     protected double scale(double number) {
-        double value = number * SCALE_BASE * SCALE_MULTIPLIER_1;
+        double value = number * SCALE_BASE * plotterScale.getValue();
         return value * SCALE_MULTIPLIER_2;
     }
 

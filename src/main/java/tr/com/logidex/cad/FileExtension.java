@@ -7,7 +7,6 @@ public enum FileExtension {
     CUT("CUT Files","cut"),
     GGT("GGT Files","ggt"),
     CAM("CAM Files","cam");
-
     private String description;
     private String extension;
 

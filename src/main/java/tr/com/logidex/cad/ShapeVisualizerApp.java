@@ -23,7 +23,6 @@ import javafx.scene.shape.Line;
 import javafx.stage.Stage;
 import tr.com.logidex.cad.model.ClosedShape;
 import tr.com.logidex.cad.processor.FileProcessor;
-import tr.com.logidex.cad.processor.GerberFileProcessor;
 import tr.com.logidex.cad.processor.HPGLFileProcessor;
 
 import java.nio.charset.StandardCharsets;

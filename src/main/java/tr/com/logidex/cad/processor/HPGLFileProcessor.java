@@ -3,6 +3,7 @@ package tr.com.logidex.cad.processor;
 import javafx.geometry.Dimension2D;
 import javafx.geometry.Point2D;
 import javafx.scene.shape.Line;
+import tr.com.logidex.cad.PlotterScale;
 import tr.com.logidex.cad.helper.PieceSequenceNumberCreator;
 import tr.com.logidex.cad.model.Lbl;
 

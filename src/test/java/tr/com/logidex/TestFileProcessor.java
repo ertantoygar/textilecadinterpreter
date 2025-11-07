@@ -3,6 +3,7 @@ package tr.com.logidex;
 import javafx.geometry.Dimension2D;
 import javafx.geometry.Point2D;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import tr.com.logidex.cad.helper.PieceSequenceNumberCreator;
 import tr.com.logidex.cad.processor.FileProcessor;
@@ -11,16 +12,15 @@ import tr.com.logidex.cad.processor.GerberFileProcessor;
 import tr.com.logidex.cad.processor.HPGLFileProcessor;
 
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
 
 public class TestFileProcessor {
 
@@ -59,7 +59,7 @@ public class TestFileProcessor {
         }
 
         assertEquals("-61-73107-100-100-107-18-21-96-6947-86-63-1113-10-68-117-19-9156-50-23-60892139-113-1005-55-19", digestString);
-        assertEquals(159, fileProcessor.getSortedAndOptimizedLbls().size());
+        assertEquals(159, fileProcessor.  getSortedAndOptimizedLbls().size());
         assertEquals(new Dimension2D(6605.6256,1664.5128), fileProcessor.drawingDimensions);
 
 

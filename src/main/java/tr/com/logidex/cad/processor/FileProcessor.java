@@ -26,6 +26,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
 
     // Static state
     public static Unit unit;
+    public static PlotterScale plotterScale = PlotterScale.DEFAULT;
 
     // Collections
     private List<Lbl> sortedAndOptimizedLbls = new ArrayList<>();
@@ -57,6 +58,8 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
 
 
 
+
+
     // ==================== Abstract Methods ====================
 
     protected abstract void initUnwantedChars();
@@ -75,6 +78,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
             determineDrawingDimension();
             groupSortLabelsAndOptimizeRoutes(FlipHorizontally.NO, FlipVertically.NO);
             createPieces();
+            removeTheLabelsWithoutPattern();
             mergeLabelsIfPatternHasTwoLabels();
             checkOverlapError();
         } catch (Exception e) {
@@ -92,6 +96,9 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
             groupSortLabelsAndOptimizeRoutes(flipHorizontally, flipVertically);
             flipShapes(Flipping.HORIZONTAL);
             mergeLabelsWithSameShape();
+            removeTheLabelsWithoutPattern();
+
+
         }
     }
 
@@ -104,6 +111,9 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
             groupSortLabelsAndOptimizeRoutes(flipHorizontally, flipVertically);
             flipShapes(Flipping.VERTICAL);
             mergeLabelsWithSameShape();
+            removeTheLabelsWithoutPattern();
+
+
         }
     }
 
@@ -202,7 +212,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
     }
 
     protected double scale(double number) {
-        return number / PLOTTER_SCALE * 1.016;
+        return number / PLOTTER_SCALE * plotterScale.getValue();
     }
 
     // ==================== Label Management ====================
@@ -216,6 +226,13 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
             sortedAndOptimizedLbls = organizeLabels(sortedLbls, drawingDimensions.getWidth(), DRAWING_SPLIT_WIDTH);
             addReferenceLabelToTheFinalList();
         }
+    }
+
+    private void removeTheLabelsWithoutPattern() {
+
+        var listToRemove = sortedAndOptimizedLbls.stream().filter(label -> label.getShape() == null && !label.getText().equals(REFERENCE_SIGN)).collect(Collectors.toList());
+        sortedAndOptimizedLbls.removeAll(listToRemove);
+
     }
 
     private void addReferenceLabelToTheFinalList() {
@@ -295,6 +312,8 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
      * Finds labels bound to the same shape and merges them.
      */
     public void mergeLabelsWithSameShape() {
+
+
         Map<ClosedShape, List<Lbl>> duplicatedShapes = sortedAndOptimizedLbls.stream()
                 .filter(lbl -> lbl.getShape() != null)
                 .collect(Collectors.groupingBy(Lbl::getShape));
@@ -322,6 +341,9 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
     }
 
     public void mergeLabelsIfPatternHasTwoLabels() {
+
+
+
         System.out.println("mergeLabelsIfPatternHasTwoLabels");
 
         List<Lbl> notHaveAShape = sortedAndOptimizedLbls.stream()
