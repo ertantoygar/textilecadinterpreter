@@ -465,7 +465,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
         }
     }
 
-    public void flipShapes(Flipping flipping) {
+    private void flipShapes(Flipping flipping) {
         for (ClosedShape cs : shapes) {
             cs.restoreColor();
 
