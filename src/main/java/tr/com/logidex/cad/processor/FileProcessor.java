@@ -13,6 +13,8 @@ import tr.com.logidex.cad.model.Lbl;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static tr.com.logidex.cad.SvgGenerationService.generateSvgForShape;
+
 /**
  * Abstract base class for processing CAD files of different formats.
  * Handles common operations like shape creation, label organization, and transformations.
@@ -532,4 +534,38 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
                 + "There are overlapped patterns! The calculated centroid of a pattern is falling under another pattern.");
         alert.showAndWait();
     }
+
+    /**
+     *
+     * @param scale
+     * @param strokeColorName
+     * @param fillColorName
+     * @return returns the drawing in svg
+     */
+    public  String generateFullSvg(double scale,String strokeColorName,String fillColorName) {
+
+
+        if (scale == 0){
+            scale = 1;
+        }
+
+        int width = (int) (drawingDimensions.getWidth() * scale);
+        int height = (int) (drawingDimensions.getHeight() * scale);
+
+        double finalScale = scale;
+        String svgContent = shapes.stream()
+                .map(shape -> generateSvgForShape(shape, finalScale ,strokeColorName,fillColorName))
+                .collect(Collectors.joining("\n    "));
+
+        // SVG wrapper etiketini oluştur
+        return String.format(
+                "<svg width=\"%d\" height=\"%d\" viewBox=\"0 0 %d %d\" xmlns=\"http://www.w3.org/2000/svg\">\n" +
+                        "    <!-- Ham Koordinatlarla Çizilen Şekiller -->\n" +
+                        "    %s\n" +
+                        "</svg>",
+                width, height, width, height, svgContent.trim()
+        );
+    }
+
+
 }
