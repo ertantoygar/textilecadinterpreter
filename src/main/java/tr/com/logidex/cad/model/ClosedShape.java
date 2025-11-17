@@ -36,6 +36,7 @@ public class ClosedShape {
     private boolean calculatedCenterPointIsInThisShape;
     private boolean shapeSelected;
     private boolean shapePrinted;
+    private  boolean shapeLocked;
     private Integer id;
 
     // Bounds cache
@@ -463,6 +464,10 @@ public class ClosedShape {
         this.shapePrinted = shapePrinted;
     }
 
+    public boolean isShapeLocked() {
+        return shapeLocked;
+    }
+
     public Integer getId() {
         return id;
     }
@@ -506,5 +511,13 @@ public class ClosedShape {
             this.firstIntersection = first;
             this.secondIntersection = second;
         }
+    }
+
+    public void lock(){
+        shapeLocked = true;
+    }
+
+    public void unlock(){
+        shapeLocked = false;
     }
 }
