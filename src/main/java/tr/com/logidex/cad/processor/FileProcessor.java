@@ -537,7 +537,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
 
     /**
      *
-     * @param scale
+     * @param scale must be > 0
      * @param strokeColorName
      * @param fillColorName
      * @return returns the drawing in svg
@@ -545,7 +545,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
     public  String generateFullSvg(double scale,String strokeColorName,String fillColorName) {
 
 
-        if (scale == 0){
+        if (scale <= 0){
             scale = 1;
         }
 
