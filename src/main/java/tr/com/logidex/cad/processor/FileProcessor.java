@@ -392,20 +392,28 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
             initializeLabelsForGGT();
         }
 
+        // Step 1: Create all shapes without label assignment
         for (Map.Entry<Integer, List<Line>> entry : linesForClosedShapes.entrySet()) {
             ClosedShape cs = new ClosedShape(entry.getValue(), (this instanceof GGTFileProcessor));
 
             if (cs.isValidPiece()) {
                 cs.relocateOriginX();
                 cs.setId(entry.getKey());
-
-                if (this instanceof GGTFileProcessor) {
-                    processGGTShape(cs);
-                } else {
-                    processStandardShape(cs);
-                }
-
                 addShapeIfUnique(cs);
+            }
+        }
+
+        // Step 2: Filter out bounding frames (only for non-GGT files)
+        if (!(this instanceof GGTFileProcessor)) {
+            filterOutBoundingFrames();
+        }
+
+        // Step 3: Assign labels to shapes
+        for (ClosedShape cs : shapes) {
+            if (this instanceof GGTFileProcessor) {
+                processGGTShape(cs);
+            } else {
+                processStandardShape(cs);
             }
         }
     }
@@ -465,6 +473,74 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
         if (!alreadyExists) {
             shapes.add(cs);
         }
+    }
+
+    /**
+     * Detects and removes bounding frame rectangles that span the entire drawing area.
+     * A shape is considered a bounding frame if:
+     * - It is a simple rectangle (4 lines forming 90-degree angles)
+     * - It starts near (0,0) and extends to the maximum drawing dimensions
+     * This is a very conservative approach to avoid removing legitimate pattern pieces.
+     */
+    private void filterOutBoundingFrames() {
+        if (shapes.size() <= 1) {
+            return; // Need at least 2 shapes to detect a bounding frame
+        }
+
+        // Get the actual drawing dimensions
+        double maxX = drawingDimensions.getWidth();
+        double maxY = drawingDimensions.getHeight();
+        double tolerance = Math.max(maxX, maxY) * 0.01; // 1% tolerance for floating point comparison
+
+        List<ClosedShape> framesToRemove = new ArrayList<>();
+
+        for (ClosedShape shape : shapes) {
+            // Check if it's a rectangle spanning the full drawing area
+            if (isRectangleAtMaxBounds(shape, maxX, maxY, tolerance)) {
+                framesToRemove.add(shape);
+                System.out.println("Detected bounding frame rectangle (ID: " + shape.getId() +
+                    ") at max bounds [" + maxX + " x " + maxY + "]. Removing it.");
+            }
+        }
+
+        // Remove the detected frames
+        shapes.removeAll(framesToRemove);
+    }
+
+    /**
+     * Checks if a shape is a rectangle that spans the full drawing area.
+     *
+     * @param shape The shape to check
+     * @param maxX Maximum X coordinate of the drawing
+     * @param maxY Maximum Y coordinate of the drawing
+     * @param tolerance Tolerance for floating point comparison
+     * @return true if the shape is a bounding frame rectangle
+     */
+    private boolean isRectangleAtMaxBounds(ClosedShape shape, double maxX, double maxY, double tolerance) {
+        // First check if it's actually a rectangle (must have exactly 4 lines)
+        if (!isSimpleRectangle(shape)) {
+            return false;
+        }
+
+        // Check if bounds span nearly the full drawing area
+        javafx.geometry.BoundingBox bounds = shape.getBounds();
+
+        boolean startsNearZero = bounds.getMinX() <= tolerance && bounds.getMinY() <= tolerance;
+        boolean spansMaxX = Math.abs(bounds.getMaxX() - maxX) <= tolerance;
+        boolean spansMaxY = Math.abs(bounds.getMaxY() - maxY) <= tolerance;
+
+        return startsNearZero && spansMaxX && spansMaxY;
+    }
+
+    /**
+     * Checks if a shape is a simple rectangle with 4 lines.
+     *
+     * @param shape The shape to check
+     * @return true if the shape has exactly 4 lines (rectangle or quadrilateral)
+     */
+    private boolean isSimpleRectangle(ClosedShape shape) {
+        // A rectangle should have exactly 4 lines
+        return shape.getLines().size() == 4;
     }
 
     private void flipShapes(Flipping flipping) {
