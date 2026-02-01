@@ -11,13 +11,26 @@ import tr.com.logidex.cad.processor.HPGLFileProcessor;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.util.Properties;
 
 /**
  * Manages CAD source files and delegates processing to appropriate file processors
  * based on file extension.
  */
 public class SourceFile {
+
+    static {
+        try (InputStream is = SourceFile.class.getResourceAsStream("/version.properties")) {
+            if (is != null) {
+                Properties props = new Properties();
+                props.load(is);
+                System.out.println("LogidexCadInterpreter v" + props.getProperty("version"));
+            }
+        } catch (IOException ignored) {
+        }
+    }
 
     private static final String DEFAULT_FILE_NAME = "-----";
 
@@ -109,7 +122,7 @@ public class SourceFile {
     }
 
     private String readFileContent(File file) throws IOException {
-        return Util.readFile(file.getAbsolutePath(), StandardCharsets.ISO_8859_1);
+        return Util.readFile(file.getAbsolutePath(), Charset.forName("ISO-8859-9"));
     }
 
     /**
