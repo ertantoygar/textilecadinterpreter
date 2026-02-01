@@ -69,6 +69,10 @@ public class SourceFile {
     }
     public void excludeReferenceSign() {FileProcessor.excludeReferenceSign = true;}
 
+    public void setContourBoundaries(boolean contourBoundaries) {
+        FileProcessor.contourBoundaries = contourBoundaries;
+    }
+
 
     // ==================== File Processing ====================
 

@@ -31,6 +31,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
     public static PlotterScale plotterScale = PlotterScale.DEFAULT;
     public static ColorTheme colorTheme = ColorTheme.LIGHT;
     public static boolean excludeReferenceSign;
+    public static boolean contourBoundaries;
 
     // Collections
     private List<Lbl> sortedAndOptimizedLbls = new ArrayList<>();

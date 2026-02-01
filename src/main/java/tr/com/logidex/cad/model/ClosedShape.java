@@ -29,6 +29,7 @@ public class ClosedShape {
     private final List<Line> lines;
     private final boolean isGGTFile;
     private final Color originalColor;
+    private final Color contourColor;
 
     // Mutable state
     private Lbl label;
@@ -49,6 +50,9 @@ public class ClosedShape {
         this.isGGTFile = isGGTFile;
         this.color = generateRandomColor();
         this.originalColor = this.color;
+        this.contourColor = FileProcessor.contourBoundaries
+                ? (FileProcessor.colorTheme == ColorTheme.DARK ? Color.LIGHTGRAY : Color.BLACK)
+                : null;
         analyzePath();
     }
 
@@ -464,6 +468,10 @@ public class ClosedShape {
 
     public void restoreColor() {
         this.color = originalColor;
+    }
+
+    public Color getContourColor() {
+        return contourColor;
     }
 
     public boolean isShapePrinted() {
