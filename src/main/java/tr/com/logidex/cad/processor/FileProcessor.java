@@ -29,6 +29,8 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
     // Static state
     public static Unit unit;
     public static PlotterScale plotterScale = PlotterScale.DEFAULT;
+    public static ColorTheme colorTheme = ColorTheme.LIGHT;
+    public static boolean excludeReferenceSign;
 
     // Collections
     private List<Lbl> sortedAndOptimizedLbls = new ArrayList<>();
@@ -51,6 +53,8 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
     private FlipHorizontally flipHorizontally = FlipHorizontally.NO;
     private FlipVertically flipVertically = FlipVertically.NO;
     private boolean err = false;
+
+
 
     public FileProcessor(String fileContent) {
         this.fileContent = fileContent;
@@ -172,6 +176,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
         return flipVertically;
     }
 
+
     // ==================== Processing Methods ====================
 
     protected void splitCommands() {
@@ -226,7 +231,9 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
             double height = drawingDimensions.getHeight();
             sortedLbls = labelGroupingManager.groupAndSortLabels(labels, minPosX, width, height, flipH, flipV);
             sortedAndOptimizedLbls = organizeLabels(sortedLbls, drawingDimensions.getWidth(), DRAWING_SPLIT_WIDTH);
-            addReferenceLabelToTheFinalList();
+            if(!excludeReferenceSign) {
+                addReferenceLabelToTheFinalList();
+            }
         }
     }
 
@@ -642,6 +649,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
                 width, height, width, height, svgContent.trim()
         );
     }
+
 
 
 }

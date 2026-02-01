@@ -64,6 +64,11 @@ public class SourceFile {
         return plotterScale;
     }
 
+    public void setColorTheme(ColorTheme colorTheme) {
+        FileProcessor.colorTheme = colorTheme;
+    }
+    public void excludeReferenceSign() {FileProcessor.excludeReferenceSign = true;}
+
 
     // ==================== File Processing ====================
 

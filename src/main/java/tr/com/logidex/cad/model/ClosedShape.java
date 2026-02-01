@@ -4,7 +4,9 @@ import javafx.geometry.BoundingBox;
 import javafx.geometry.Point2D;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
+import tr.com.logidex.cad.ColorTheme;
 import tr.com.logidex.cad.helper.Util;
+import tr.com.logidex.cad.processor.FileProcessor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -190,6 +192,14 @@ public class ClosedShape {
 
     private static Color generateRandomColor() {
         Random random = new Random();
+        if (FileProcessor.colorTheme == ColorTheme.DARK) {
+            return Color.rgb(
+                    150 + random.nextInt(106),
+                    random.nextInt(100),
+                    150 + random.nextInt(106),
+                    DEFAULT_OPACITY
+            );
+        }
         return Color.rgb(
                 random.nextInt(256),
                 random.nextInt(100),
