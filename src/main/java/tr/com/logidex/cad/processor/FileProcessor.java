@@ -344,6 +344,10 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
                             longest.setText(currentText + "\n" + textToAdd);
                             toRemove.add(shortLbl);
                         });
+
+                // Update shape's label reference to the surviving label
+                shape.setLabel(longest);
+                longest.setShape(shape);
             }
         });
 
