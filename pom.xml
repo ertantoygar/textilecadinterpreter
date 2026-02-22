@@ -6,7 +6,7 @@
 
     <groupId>tr.com.logidex.cad</groupId>
     <artifactId>LogidexCadInterpreter</artifactId>
-    <version>1.2.1</version>
+    <version>1.2.2</version>
     <name>LogidexCadInterpreter</name>
 
     <properties>
