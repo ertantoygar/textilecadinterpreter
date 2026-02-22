@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>tr.com.logidex.cad</groupId>
-    <artifactId>LogidexCadInterpreter</artifactId>
+    <artifactId>logidex-cad-interpreter</artifactId>
     <version>1.2.2</version>
     <name>LogidexCadInterpreter</name>
 
