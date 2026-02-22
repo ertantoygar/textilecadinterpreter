@@ -9,7 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -22,7 +22,13 @@ jobs:
           distribution: 'temurin'
           server-id: github
 
-      - name: Publish to GitHub Packages
+      - name: Build and publish to GitHub Packages
         run: mvn --batch-mode deploy -DskipTests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload JAR to release
+        if: github.event_name == 'release'
+        run: gh release upload ${{ github.event.release.tag_name }} target/*.jar --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
