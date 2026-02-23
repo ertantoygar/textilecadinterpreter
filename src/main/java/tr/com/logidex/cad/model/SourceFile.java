@@ -1,7 +1,5 @@
 package tr.com.logidex.cad.model;
 
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import tr.com.logidex.cad.*;
 import tr.com.logidex.cad.helper.Util;
 import tr.com.logidex.cad.processor.FileProcessor;
@@ -34,30 +32,26 @@ public class SourceFile {
 
     private static final String DEFAULT_FILE_NAME = "-----";
 
-    private final StringProperty activeFileName;
+    private String activeFileName;
     private final PlotterScale plotterScale ;
 
     public SourceFile(PlotterScale plotterScale) {
-        this.activeFileName = new SimpleStringProperty(DEFAULT_FILE_NAME);
+        this.activeFileName = DEFAULT_FILE_NAME;
         this.plotterScale = plotterScale == null?PlotterScale.DEFAULT:plotterScale;
         FileProcessor.plotterScale = this.plotterScale;
 
     }
 
     public SourceFile() {
-        this.activeFileName = new SimpleStringProperty(DEFAULT_FILE_NAME);
+        this.activeFileName = DEFAULT_FILE_NAME;
         this.plotterScale = PlotterScale.DEFAULT;
         FileProcessor.plotterScale = this.plotterScale;
     }
 
     // ==================== Property Accessors ====================
 
-    public StringProperty activeFileNameProperty() {
-        return activeFileName;
-    }
-
     public String getActiveFileName() {
-        return activeFileName.get();
+        return activeFileName;
     }
 
     public  PlotterScale getPlotterScale() {
@@ -97,7 +91,7 @@ public class SourceFile {
             FileProcessor processor = createProcessor(extension, fileContent);
 
             processor.startFileProcessing();
-            activeFileName.set(file.getName());
+            activeFileName = file.getName();
 
             return processor;
 

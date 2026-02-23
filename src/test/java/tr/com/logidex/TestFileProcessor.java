@@ -1,7 +1,7 @@
 package tr.com.logidex;
 
-import javafx.geometry.Dimension2D;
-import javafx.geometry.Point2D;
+import tr.com.logidex.cad.geometry.Dimension2D;
+import tr.com.logidex.cad.geometry.Point2D;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -58,7 +58,7 @@ public class TestFileProcessor {
             digestString += digest[i];
         }
 
-        assertEquals("-61-73107-100-100-107-18-21-96-6947-86-63-1113-10-68-117-19-9156-50-23-60892139-113-1005-55-19", digestString);
+        assertEquals("2776-44-33107-71-19-3-7195-35-1171004124-118-1144-4111175311-4-16-58-2948109-6059", digestString);
         assertEquals(159, fileProcessor.  getSortedAndOptimizedLbls().size());
         assertEquals(new Dimension2D(6605.6256,1664.5128), fileProcessor.drawingDimensions);
 
@@ -151,7 +151,7 @@ public class TestFileProcessor {
             digestString += digest[i];
         }
 
-        assertEquals("-476648-36-45-11518-5-51-97-105-101-4-24-7990-96-26-169-216850-103-2828-12128998164-42", digestString);
+        assertEquals("-89-3435-126017-23-82-778919-3333-4763-103-92-44114628095-5212-5391123-236-60-977", digestString);
         assertEquals(161, fileProcessor.getSortedAndOptimizedLbls().size());
         assertEquals(new Dimension2D(9419.5,1800.0), fileProcessor.drawingDimensions);
 
@@ -243,7 +243,7 @@ public class TestFileProcessor {
             digestString += digest[i];
         }
 
-        assertEquals("69-87-126-47-6159-114-12226-44-71-14-128-65-10964-113-10672068-1211428-5-2682-331486-45-125", digestString);
+        assertEquals("21-1149592109631080-38215-15-55881126-124-29-64-1-6781117-10312520-117-70-31-462482", digestString);
         assertEquals(43, fileProcessor.getSortedAndOptimizedLbls().size());
         assertEquals(new Dimension2D(2905.252,1400.0480000000002), fileProcessor.drawingDimensions);
 

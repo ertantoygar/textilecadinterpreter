@@ -1,7 +1,6 @@
 package tr.com.logidex.cad.model;
 
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.geometry.Point2D;
+import tr.com.logidex.cad.geometry.Point2D;
 import tr.com.logidex.cad.processor.FileProcessor;
 import tr.com.logidex.cad.Unit;
 import tr.com.logidex.cad.helper.Util;
@@ -26,7 +25,7 @@ public class Lbl {
     private final double height;
 
     // Position tracking
-    private final SimpleObjectProperty<Point2D> position;
+    private Point2D position;
     private final Point2D originalXY;
 
     // Associated shape
@@ -34,7 +33,7 @@ public class Lbl {
 
     public Lbl(String text, Point2D pos, double angle, double origin, double width, double height) {
         this.text = text;
-        this.position = new SimpleObjectProperty<>(pos);
+        this.position = pos;
         this.angle = angle;
         this.origin = origin;
         this.width = width;
@@ -45,15 +44,11 @@ public class Lbl {
     // ==================== Position Management ====================
 
     public Point2D getPosition() {
-        return position.get();
+        return position;
     }
 
     public void setPosition(Point2D position) {
-        this.position.set(position);
-    }
-
-    public SimpleObjectProperty<Point2D> positionProperty() {
-        return position;
+        this.position = position;
     }
 
     public Point2D getOriginalXY() {
@@ -67,8 +62,7 @@ public class Lbl {
      * @param yOffset The offset to apply to the y-coordinate
      */
     public void offsetLabelPosition(double xOffset, double yOffset) {
-        Point2D currentPos = position.get();
-        position.set(new Point2D(currentPos.getX() + xOffset, currentPos.getY() + yOffset));
+        position = new Point2D(position.getX() + xOffset, position.getY() + yOffset);
     }
 
     /**
@@ -77,7 +71,7 @@ public class Lbl {
      * @param newPoint The new position for the label
      */
     public void changeLabelPosition(Point2D newPoint) {
-        position.set(newPoint);
+        this.position = newPoint;
     }
 
     /**
@@ -86,7 +80,7 @@ public class Lbl {
      * @return true if the position has changed, false otherwise
      */
     public boolean isLabelPositionChanged() {
-        return position.get().distance(originalXY) != 0;
+        return position.distance(originalXY) != 0;
     }
 
     // ==================== Position Formatting ====================
@@ -98,9 +92,8 @@ public class Lbl {
      * @return Formatted position string (e.g., "x=10.50 y=20.75")
      */
     public String getPrintablePosition() {
-        Point2D currentPos = position.get();
-        double x = currentPos.getX();
-        double y = currentPos.getY();
+        double x = position.getX();
+        double y = position.getY();
 
         if (FileProcessor.unit == Unit.IN) {
             x = Util.mmToInch(x);
@@ -154,9 +147,8 @@ public class Lbl {
 
     @Override
     public String toString() {
-        Point2D currentPos = position.get();
-        String formattedX = String.format(POSITION_FORMAT, currentPos.getX());
-        String formattedY = String.format(POSITION_FORMAT, currentPos.getY());
+        String formattedX = String.format(POSITION_FORMAT, position.getX());
+        String formattedY = String.format(POSITION_FORMAT, position.getY());
         return text + "\n[x=" + formattedX + " , y=" + formattedY + "]";
     }
 }

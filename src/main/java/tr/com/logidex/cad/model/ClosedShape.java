@@ -1,9 +1,9 @@
 package tr.com.logidex.cad.model;
 
-import javafx.geometry.BoundingBox;
-import javafx.geometry.Point2D;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Line;
+import tr.com.logidex.cad.geometry.BoundingBox;
+import tr.com.logidex.cad.geometry.Point2D;
+import tr.com.logidex.cad.geometry.Color;
+import tr.com.logidex.cad.geometry.Line;
 import tr.com.logidex.cad.ColorTheme;
 import tr.com.logidex.cad.helper.Util;
 import tr.com.logidex.cad.processor.FileProcessor;

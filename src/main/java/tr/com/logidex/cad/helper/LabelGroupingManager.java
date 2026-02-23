@@ -1,6 +1,6 @@
 package tr.com.logidex.cad.helper;
 
-import javafx.geometry.Point2D;
+import tr.com.logidex.cad.geometry.Point2D;
 import tr.com.logidex.cad.processor.FlipHorizontally;
 import tr.com.logidex.cad.processor.FlipVertically;
 import tr.com.logidex.cad.model.Lbl;

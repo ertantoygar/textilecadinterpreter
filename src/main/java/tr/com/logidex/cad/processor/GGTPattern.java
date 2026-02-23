@@ -1,8 +1,8 @@
 package tr.com.logidex.cad.processor;
 
 
-import javafx.geometry.Point2D;
-import javafx.scene.shape.Line;
+import tr.com.logidex.cad.geometry.Point2D;
+import tr.com.logidex.cad.geometry.Line;
 import tr.com.logidex.cad.model.Lbl;
 
 import java.util.ArrayList;

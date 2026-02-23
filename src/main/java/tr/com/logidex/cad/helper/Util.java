@@ -1,13 +1,7 @@
 package tr.com.logidex.cad.helper;
 
-import javafx.geometry.Point2D;
-import javafx.scene.image.ImageView;
-import javafx.scene.image.WritableImage;
-import javafx.scene.layout.Pane;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Line;
-import javafx.scene.shape.Polygon;
-import javafx.scene.shape.Rectangle;
+import tr.com.logidex.cad.geometry.Point2D;
+import tr.com.logidex.cad.geometry.Line;
 import tr.com.logidex.cad.model.CoordinateBounds;
 
 
@@ -50,72 +44,6 @@ public class Util {
     public static String readFile(String path, Charset encoding) throws IOException {
         byte[] encoded = Files.readAllBytes(Paths.get(path));
         return new String(encoded, encoding);
-    }
-
-    // ==================== Image Generation ====================
-
-    /**
-     * Creates an ImageView from a list of lines representing a shape.
-     * The image is scaled to fit within the specified maximum dimensions.
-     *
-     * @param lines The lines forming the shape
-     * @param maxWidth Maximum width for the image
-     * @param maxHeight Maximum height for the image
-     * @return An ImageView containing the rendered shape
-     */
-    public static ImageView createImageViewFromLines(List<Line> lines, double maxWidth, double maxHeight) {
-        Pane pane = createPaneWithBackground(maxWidth, maxHeight);
-        CoordinateBounds bounds = findMinMaxCoordinates(lines);
-
-        if (bounds == null) {
-            return createEmptyImageView(maxWidth, maxHeight);
-        }
-
-        Polygon polygon = createPolygonFromLines(lines, bounds);
-        pane.getChildren().add(polygon);
-
-        return createImageViewFromPane(pane, maxWidth, maxHeight);
-    }
-
-    private static Pane createPaneWithBackground(double width, double height) {
-        Pane pane = new Pane();
-        Rectangle background = new Rectangle(width, height);
-        background.setFill(Color.TRANSPARENT);
-        return pane;
-    }
-
-    private static Polygon createPolygonFromLines(List<Line> lines, CoordinateBounds bounds) {
-        Polygon polygon = new Polygon();
-
-        for (Line line : lines) {
-            double x1 = line.getStartX() - bounds.getMinX();
-            double y1 = line.getStartY() - bounds.getMinY();
-            double x2 = line.getEndX() - bounds.getMinX();
-            double y2 = line.getEndY() - bounds.getMinY();
-
-            polygon.getPoints().addAll(x2, y2, x1, y1);
-        }
-
-        polygon.setScaleY(-1); // Flip vertically
-        return polygon;
-    }
-
-    private static ImageView createImageViewFromPane(Pane pane, double maxWidth, double maxHeight) {
-        WritableImage writableImage = pane.snapshot(null, null);
-        ImageView imageView = new ImageView(writableImage);
-
-        imageView.setPreserveRatio(true);
-        imageView.setFitWidth(maxWidth);
-        imageView.setFitHeight(maxHeight);
-
-        return imageView;
-    }
-
-    private static ImageView createEmptyImageView(double maxWidth, double maxHeight) {
-        ImageView imageView = new ImageView();
-        imageView.setFitWidth(maxWidth);
-        imageView.setFitHeight(maxHeight);
-        return imageView;
     }
 
     // ==================== Coordinate Operations ====================
@@ -315,20 +243,6 @@ public class Util {
             return n |= 1 << bit; // set bit
         else
             return n &= ~(1 << bit); // reset bit
-    }
-
-
-    public static Polygon producePolygon(List<Line> lines) {
-        Polygon polygon = new Polygon();
-
-
-        for (Line line : lines) {
-            polygon.getPoints().add(line.getStartX());
-            polygon.getPoints().add(line.getStartY());
-            polygon.getPoints().add(line.getEndX());
-            polygon.getPoints().add(line.getEndY());
-        }
-        return polygon;
     }
 
 

@@ -1,7 +1,7 @@
 package tr.com.logidex.cad;
 
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Line;
+import tr.com.logidex.cad.geometry.Color;
+import tr.com.logidex.cad.geometry.Line;
 import tr.com.logidex.cad.model.ClosedShape;
 
 import java.util.List;

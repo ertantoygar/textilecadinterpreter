@@ -1,10 +1,10 @@
 package tr.com.logidex.cad.processor;
 
-import javafx.geometry.Dimension2D;
-import javafx.geometry.Point2D;
-import javafx.scene.control.Alert;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Line;
+import tr.com.logidex.cad.geometry.BoundingBox;
+import tr.com.logidex.cad.geometry.Dimension2D;
+import tr.com.logidex.cad.geometry.Point2D;
+import tr.com.logidex.cad.geometry.Color;
+import tr.com.logidex.cad.geometry.Line;
 import tr.com.logidex.cad.*;
 import tr.com.logidex.cad.helper.LabelGroupingManager;
 import tr.com.logidex.cad.model.ClosedShape;
@@ -535,7 +535,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
         }
 
         // Check if bounds span nearly the full drawing area
-        javafx.geometry.BoundingBox bounds = shape.getBounds();
+        BoundingBox bounds = shape.getBounds();
 
         boolean startsNearZero = bounds.getMinX() <= tolerance && bounds.getMinY() <= tolerance;
         boolean spansMaxX = Math.abs(bounds.getMaxX() - maxX) <= tolerance;
@@ -615,12 +615,8 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
     }
 
     private void showOverlapWarning() {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setHeaderText("WARNING!");
-        alert.setContentText("Ic ice gecmis parcalar var! Bir parcanin hesaplanan merkezi, baska bir parcanin da alani icerisinde kaliyor."
-                + "\n\n"
-                + "There are overlapped patterns! The calculated centroid of a pattern is falling under another pattern.");
-        alert.showAndWait();
+        System.err.println("WARNING: Overlapped patterns detected! " +
+                "The calculated centroid of a pattern is falling under another pattern.");
     }
 
     /**
