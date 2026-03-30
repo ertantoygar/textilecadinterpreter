@@ -7,6 +7,7 @@ import tr.com.logidex.cad.geometry.Color;
 import tr.com.logidex.cad.geometry.Line;
 import tr.com.logidex.cad.*;
 import tr.com.logidex.cad.helper.LabelGroupingManager;
+import tr.com.logidex.cad.helper.PieceSequenceNumberCreator;
 import tr.com.logidex.cad.model.ClosedShape;
 import tr.com.logidex.cad.model.Lbl;
 
@@ -134,6 +135,10 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
         lines = null;
         fileContent = null;
         labelGroupingManager.clear();
+        GGTParcalar.clear();
+        UNWANTED_CHARS = null;
+        SPLIT_REGEX = null;
+        PieceSequenceNumberCreator.resetCounter();
     }
 
     // ==================== Getters ====================

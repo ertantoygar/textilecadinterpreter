@@ -35,13 +35,24 @@ public final  class GGTFileProcessor extends FileProcessor {
 
     private List<GGTPattern> patterns;
     private GGTPattern activePattern;
-    private final String fileContent;
+    private String fileContent;
 
     public GGTFileProcessor(String fileContent) {
         super(fileContent);
         this.patterns = new ArrayList<>();
         this.activePattern = null;
         this.fileContent = fileContent;
+    }
+
+    @Override
+    public void clearAll() {
+        super.clearAll();
+        if (patterns != null) {
+            patterns.clear();
+            patterns = null;
+        }
+        activePattern = null;
+        fileContent = null;
     }
 
     @Override
