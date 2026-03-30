@@ -24,6 +24,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
 
     // Constants
     public static final String REFERENCE_SIGN = "+";
+    private static final String ROUTE_STRATEGY_PROPERTY = "cad.route.strategy";
     private static final double DRAWING_SPLIT_WIDTH = 50;
     private static final double PLOTTER_SCALE = 40;
 
@@ -54,6 +55,8 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
     private final List<GGTPattern> GGTParcalar = new ArrayList<>();
     private FlipHorizontally flipHorizontally = FlipHorizontally.NO;
     private FlipVertically flipVertically = FlipVertically.NO;
+    private RouteStrategy routeStrategy;
+    private RoutePlan lastRoutePlan;
     private boolean err = false;
 
 
@@ -62,6 +65,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
         this.fileContent = fileContent;
         initUnwantedChars();
         initSplitRegex();
+        routeStrategy = RouteStrategy.fromValue(System.getProperty(ROUTE_STRATEGY_PROPERTY));
     }
 
 
@@ -138,6 +142,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
         GGTParcalar.clear();
         UNWANTED_CHARS = null;
         SPLIT_REGEX = null;
+        lastRoutePlan = null;
         PieceSequenceNumberCreator.resetCounter();
     }
 
@@ -166,6 +171,18 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
 
     public List<GGTPattern> getGGTParcalar() {
         return GGTParcalar;
+    }
+
+    public RouteStrategy getRouteStrategy() {
+        return routeStrategy;
+    }
+
+    public void setRouteStrategy(RouteStrategy routeStrategy) {
+        this.routeStrategy = routeStrategy == null ? RouteStrategy.LEGACY_SNAKE : routeStrategy;
+    }
+
+    public RoutePlan getLastRoutePlan() {
+        return lastRoutePlan;
     }
 
     public String getPrintableDimensions() {
@@ -236,7 +253,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
             double width = drawingDimensions.getWidth();
             double height = drawingDimensions.getHeight();
             sortedLbls = labelGroupingManager.groupAndSortLabels(labels, minPosX, width, height, flipH, flipV);
-            sortedAndOptimizedLbls = organizeLabels(sortedLbls, drawingDimensions.getWidth(), DRAWING_SPLIT_WIDTH);
+            organizeLabelsByStrategy(sortedLbls);
             if(!excludeReferenceSign) {
                 addReferenceLabelToTheFinalList();
             }
@@ -264,63 +281,17 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
      * @return List of labels in optimal processing order
      */
     public static List<Lbl> organizeLabels(List<Lbl> labels, double drawingWidth, double stripWidth) {
-        if (labels == null || labels.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        int stripCount = (int) Math.ceil(drawingWidth / stripWidth);
-        List<List<Lbl>> strips = createStrips(stripCount);
-
-        assignLabelsToStrips(labels, strips, stripWidth, stripCount);
-        sortStripsInSnakePattern(strips);
-
-        return combineStrips(strips, labels.size());
+        return LabelRoutePlanner.organizeLegacySnake(labels, drawingWidth, stripWidth);
     }
 
-    private static List<List<Lbl>> createStrips(int stripCount) {
-        List<List<Lbl>> strips = new ArrayList<>(stripCount);
-        for (int i = 0; i < stripCount; i++) {
-            strips.add(new ArrayList<>());
-        }
-        return strips;
-    }
-
-    private static void assignLabelsToStrips(List<Lbl> labels, List<List<Lbl>> strips,
-                                             double stripWidth, int stripCount) {
-        for (Lbl label : labels) {
-            if (label == null) {
-                continue;
-            }
-
-            double x = label.getPosition().getX();
-            int stripIndex = (int) (x / stripWidth);
-
-            if (stripIndex == stripCount) {
-                stripIndex = stripCount - 1;
-            }
-
-            if (stripIndex >= 0 && stripIndex < stripCount) {
-                strips.get(stripIndex).add(label);
-            }
-        }
-    }
-
-    private static void sortStripsInSnakePattern(List<List<Lbl>> strips) {
-        for (int i = 0; i < strips.size(); i++) {
-            Collections.sort(strips.get(i), Comparator.comparingDouble(l -> l.getPosition().getY()));
-
-            if (i % 2 == 1) {
-                Collections.reverse(strips.get(i));
-            }
-        }
-    }
-
-    private static List<Lbl> combineStrips(List<List<Lbl>> strips, int estimatedSize) {
-        List<Lbl> result = new ArrayList<>(estimatedSize);
-        for (List<Lbl> strip : strips) {
-            result.addAll(strip);
-        }
-        return result;
+    private void organizeLabelsByStrategy(List<Lbl> labelsToOrganize) {
+        lastRoutePlan = LabelRoutePlanner.plan(
+                labelsToOrganize,
+                drawingDimensions.getWidth(),
+                DRAWING_SPLIT_WIDTH,
+                routeStrategy
+        );
+        sortedAndOptimizedLbls = new ArrayList<>(lastRoutePlan.getOrderedLabels());
     }
 
     /**
@@ -458,7 +429,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
             }
         }
 
-        sortedAndOptimizedLbls = organizeLabels(labels, drawingDimensions.getWidth(), DRAWING_SPLIT_WIDTH);
+        organizeLabelsByStrategy(labels);
     }
 
     private void processStandardShape(ClosedShape cs) {
@@ -579,7 +550,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
         }
 
         if (this instanceof GGTFileProcessor) {
-            sortedAndOptimizedLbls = organizeLabels(labels, drawingDimensions.getWidth(), DRAWING_SPLIT_WIDTH);
+            organizeLabelsByStrategy(labels);
         }
     }
 

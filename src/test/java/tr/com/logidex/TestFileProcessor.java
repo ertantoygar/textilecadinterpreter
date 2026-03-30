@@ -5,6 +5,8 @@ import tr.com.logidex.cad.geometry.Point2D;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import tr.com.logidex.cad.ColorTheme;
+import tr.com.logidex.cad.PlotterScale;
 import tr.com.logidex.cad.helper.PieceSequenceNumberCreator;
 import tr.com.logidex.cad.processor.FileProcessor;
 import tr.com.logidex.cad.processor.GGTFileProcessor;
@@ -29,6 +31,12 @@ public class TestFileProcessor {
     public void setUp() {
 
         PieceSequenceNumberCreator.resetCounter();
+        FileProcessor.unit = null;
+        FileProcessor.plotterScale = PlotterScale.DEFAULT;
+        FileProcessor.colorTheme = ColorTheme.LIGHT;
+        FileProcessor.excludeReferenceSign = false;
+        FileProcessor.contourBoundaries = false;
+        System.clearProperty("cad.route.strategy");
     }
 
     @Test

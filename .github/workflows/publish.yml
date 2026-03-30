@@ -20,7 +20,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          server-id: github
+          server-id: github-textilecadinterpreter
 
       - name: Build and publish to GitHub Packages
         run: mvn --batch-mode deploy -DskipTests

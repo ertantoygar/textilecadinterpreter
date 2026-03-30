@@ -6,7 +6,7 @@
 
     <groupId>tr.com.logidex.cad</groupId>
     <artifactId>logidex-cad-interpreter</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
     <name>LogidexCadInterpreter</name>
 
     <properties>
@@ -31,7 +31,7 @@
 
     <distributionManagement>
         <repository>
-            <id>github-cad</id>
+            <id>github-textilecadinterpreter</id>
             <name>GitHub Packages</name>
             <url>https://maven.pkg.github.com/ertantoygar/textilecadinterpreter</url>
         </repository>
@@ -53,6 +53,11 @@
                     <source>17</source>
                     <target>17</target>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
             </plugin>
         </plugins>
     </build>
