@@ -355,6 +355,28 @@ public class TestFileProcessor {
         assertTrue(foundYanParca, "Should find YAN-PARCA label from footer");
     }
 
+    @Test
+    public void testFileProcessorCUT_NoLabelsAtAll() throws Exception {
+        // Minimal Gerber file with geometry but NO M31 and NO footer
+        String noLabelContent = "H1*M70*D2*M15*M20*NOLABEL*N1*D2*M15*X500Y100*M14*X500Y500*X100Y500*X100Y100*X500Y100*M15*QX600Y0*M0*";
+        FileProcessor fileProcessor = new GerberFileProcessor(noLabelContent);
+        fileProcessor.startFileProcessing();
+
+        // Shape should be created
+        assertTrue(fileProcessor.getShapes().size() >= 1,
+                "Expected at least 1 shape, got " + fileProcessor.getShapes().size());
+
+        // No labels should be assigned
+        long shapesWithLabels = fileProcessor.getShapes().stream()
+                .filter(s -> s.getLabel() != null)
+                .count();
+        assertEquals(0, shapesWithLabels, "No labels should be assigned for labelless file");
+
+        // No labels at all — sortedAndOptimizedLbls stays empty
+        assertEquals(0, fileProcessor.getSortedAndOptimizedLbls().size(),
+                "No labels expected for file without M31 or footer");
+    }
+
     private boolean arePointsNearlyEqual(Point2D p1, Point2D p2, double epsilon) {
         return Math.abs(p1.getX() - p2.getX()) < epsilon &&
                 Math.abs(p1.getY() - p2.getY()) < epsilon;
