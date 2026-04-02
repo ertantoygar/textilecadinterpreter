@@ -6,13 +6,14 @@ import tr.com.logidex.cad.PlotterScale;
 import tr.com.logidex.cad.helper.PieceSequenceNumberCreator;
 import tr.com.logidex.cad.model.Lbl;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import tr.com.logidex.cad.model.ClosedShape;
+
+import java.util.*;
 
 /**
  * Processor for Gerber format CAD files (.CUT, .CAM extensions).
- * Handles M14/M15 (knife down/up) commands and M31 label commands.
+ * Handles M14/M15 (knife down/up) commands, M31 label commands,
+ * and structured footer labels (L,P,D blocks).
  */
 public final class GerberFileProcessor extends FileProcessor {
 
@@ -25,8 +26,12 @@ public final class GerberFileProcessor extends FileProcessor {
     private static final String PARAMETER_PREFIX = "p";
     private static final double SCALE_FACTOR = 10.0f;
 
+    private String rawFileContent;
+    private Map<Integer, Lbl> footerLabelMap = Collections.emptyMap();
+
     public GerberFileProcessor(String fileContent) {
         super(fileContent);
+        this.rawFileContent = fileContent;
     }
 
     @Override
@@ -62,6 +67,12 @@ public final class GerberFileProcessor extends FileProcessor {
         }
 
         savePieceIfNotEmpty(currentPieceLines);
+
+        // If no M31 labels were found, try footer-based label parsing
+        if (labels.isEmpty() && rawFileContent != null) {
+            footerLabelMap = GerberFooterParser.parseFooterLabels(rawFileContent, SCALE_FACTOR);
+        }
+        rawFileContent = null;
     }
 
     private void processKnifeCommands(String instruction, CommandState state) {
@@ -169,6 +180,45 @@ public final class GerberFileProcessor extends FileProcessor {
         if (!pieceLines.isEmpty()) {
             linesForClosedShapes.put(PieceSequenceNumberCreator.getSequenceNumber(), pieceLines);
         }
+    }
+
+    @Override
+    protected void onPiecesCreated() {
+        if (footerLabelMap.isEmpty()) {
+            return;
+        }
+
+        for (ClosedShape cs : getShapes()) {
+            Lbl footerLabel = footerLabelMap.get(cs.getId());
+            if (footerLabel != null) {
+                cs.setLabel(footerLabel);
+                footerLabel.setShape(cs);
+                labels.add(footerLabel);
+            }
+        }
+
+        // Labels now populated — run sort/route pipeline
+        groupSortLabelsAndOptimizeRoutes(getFlipHorizontally(), getFlipVertically());
+
+        // Rebind sorted labels to shapes. The grouping step creates new Lbl objects
+        // that lose the shape reference, so we restore it via point-in-polygon.
+        for (Lbl lbl : getSortedAndOptimizedLbls()) {
+            if (lbl == null || lbl.getText().equals(REFERENCE_SIGN)) continue;
+            for (ClosedShape cs : getShapes()) {
+                if (ClosedShape.pointInPolygon(cs.getLines(), lbl.getPosition())) {
+                    cs.setLabel(lbl);
+                    lbl.setShape(cs);
+                    break;
+                }
+            }
+        }
+    }
+
+    @Override
+    public void clearAll() {
+        super.clearAll();
+        rawFileContent = null;
+        footerLabelMap = null;
     }
 
     @Override

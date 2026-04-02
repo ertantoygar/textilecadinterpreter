@@ -319,6 +319,42 @@ public class TestFileProcessor {
 
     }
 
+    @Test
+    public void testFileProcessorCUT_FooterLabels() throws Exception {
+
+        FileProcessor fileProcessor = new GerberFileProcessor(
+                Files.readString(Path.of("FOOTER_TEST.cut"), StandardCharsets.UTF_8)
+        );
+        fileProcessor.startFileProcessing();
+
+        // 3 pieces should be created
+        assertTrue(fileProcessor.getShapes().size() >= 3,
+                "Expected at least 3 shapes, got " + fileProcessor.getShapes().size());
+
+        // All 3 shapes should have labels from footer
+        long shapesWithLabels = fileProcessor.getShapes().stream()
+                .filter(s -> s.getLabel() != null)
+                .count();
+        assertEquals(3, shapesWithLabels, "All 3 shapes should have footer labels");
+
+        // sortedAndOptimizedLbls should have labels + reference sign
+        assertTrue(fileProcessor.getSortedAndOptimizedLbls().size() >= 4,
+                "Expected at least 4 sorted labels (3 + reference), got "
+                        + fileProcessor.getSortedAndOptimizedLbls().size());
+
+        // Verify label text contains expected D field values
+        boolean foundOnBeden = fileProcessor.getShapes().stream()
+                .anyMatch(s -> s.getLabel() != null && s.getLabel().getText().contains("ON-BEDEN"));
+        boolean foundArkaBeden = fileProcessor.getShapes().stream()
+                .anyMatch(s -> s.getLabel() != null && s.getLabel().getText().contains("ARKA-BEDEN"));
+        boolean foundYanParca = fileProcessor.getShapes().stream()
+                .anyMatch(s -> s.getLabel() != null && s.getLabel().getText().contains("YAN-PARCA"));
+
+        assertTrue(foundOnBeden, "Should find ON-BEDEN label from footer");
+        assertTrue(foundArkaBeden, "Should find ARKA-BEDEN label from footer");
+        assertTrue(foundYanParca, "Should find YAN-PARCA label from footer");
+    }
+
     private boolean arePointsNearlyEqual(Point2D p1, Point2D p2, double epsilon) {
         return Math.abs(p1.getX() - p2.getX()) < epsilon &&
                 Math.abs(p1.getY() - p2.getY()) < epsilon;

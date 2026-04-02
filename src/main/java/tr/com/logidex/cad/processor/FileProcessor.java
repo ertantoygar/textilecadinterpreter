@@ -90,6 +90,7 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
             determineDrawingDimension();
             groupSortLabelsAndOptimizeRoutes(FlipHorizontally.NO, FlipVertically.NO);
             createPieces();
+            onPiecesCreated();
             removeTheLabelsWithoutPattern();
             mergeLabelsIfPatternHasTwoLabels();
             checkOverlapError();
@@ -201,6 +202,14 @@ public sealed abstract class FileProcessor permits GerberFileProcessor,GGTFilePr
 
 
     // ==================== Processing Methods ====================
+
+    /**
+     * Hook called after pieces are created but before label cleanup.
+     * Subclasses can override to perform additional label assignment.
+     */
+    protected void onPiecesCreated() {
+        // Default: no-op
+    }
 
     protected void splitCommands() {
         commands = new ArrayList<>(Arrays.asList(fileContent.split(SPLIT_REGEX)));
