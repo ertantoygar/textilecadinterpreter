@@ -283,8 +283,6 @@ public class ClosedShape {
     public void relocateOriginX() {
         OriginRelocationResult result = findAxisIntersections(
                 center.getX(),
-                maxX,
-                calculatedCenterPointIsInThisShape,
                 AxisDirection.HORIZONTAL
         );
 
@@ -307,8 +305,6 @@ public class ClosedShape {
     public void relocateOriginY() {
         OriginRelocationResult result = findAxisIntersections(
                 center.getY(),
-                maxY,
-                calculatedCenterPointIsInThisShape,
                 AxisDirection.VERTICAL
         );
 
@@ -320,60 +316,25 @@ public class ClosedShape {
 
     private OriginRelocationResult findAxisIntersections(
             double originalCoord,
-            double maxCoord,
-            boolean startInside,
             AxisDirection axis) {
 
-        int searchDistance = (int) maxCoord;
-        int tryCount = 0;
-        boolean forward = true;
-        int lastDirection = 0;
+        if (!isValidCenter()) return null;
 
-        // Find first boundary crossing
-        while (startInside ? isPointInside() : !isPointInside()) {
-            if (tryCount++ >= searchDistance * 2) {
-                System.err.println("Error while detecting center. There may be interwoven parts.");
-                return null;
-            }
-
-            if (!isValidCenter()) return null;
-
-            if (getAxisDistance(originalCoord, axis) >= searchDistance) {
-                forward = false;
-                resetAxisCoordinate(originalCoord, axis);
-            }
-
-            if (getAxisDistance(originalCoord, axis) <= -searchDistance) {
-                forward = true;
-                resetAxisCoordinate(originalCoord, axis);
-            }
-
-            moveCenter(forward ? 1 : -1, axis);
+        List<Double> intersections = findAxisBoundaryIntersections(axis);
+        if (intersections.size() < 2) {
+            System.err.println("Error while detecting center. There may be interwoven parts.");
+            return null;
         }
 
-        lastDirection = forward ? 1 : -1;
-        double firstIntersection = getAxisCoordinate(axis);
+        intersections.sort(Double::compareTo);
+        List<Double> uniqueIntersections = removeNearDuplicateIntersections(intersections);
+        OriginRelocationResult result = findNearestInsideInterval(uniqueIntersections, originalCoord, axis);
 
-        // Re-enter shape if started inside
-        if (startInside) {
-            while (!isPointInside()) {
-                moveCenter(-lastDirection, axis);
-            }
+        if (result == null) {
+            System.err.println("Error while detecting center. There may be interwoven parts.");
         }
 
-        // Find second boundary crossing
-        while (isPointInside()) {
-            int direction = calculateExitDirection(lastDirection, startInside);
-            moveCenter(direction, axis);
-        }
-
-        double secondIntersection = getAxisCoordinate(axis);
-
-        return new OriginRelocationResult(firstIntersection, secondIntersection);
-    }
-
-    private boolean isPointInside() {
-        return pointInPolygon(lines, center);
+        return result;
     }
 
     private boolean isValidCenter() {
@@ -384,34 +345,76 @@ public class ClosedShape {
                 !Double.isNaN(center.getY());
     }
 
-    private double getAxisDistance(double original, AxisDirection axis) {
-        return axis == AxisDirection.HORIZONTAL
-                ? center.getX() - original
-                : center.getY() - original;
-    }
+    private List<Double> findAxisBoundaryIntersections(AxisDirection axis) {
+        List<Double> intersections = new ArrayList<>();
+        double fixedCoordinate = axis == AxisDirection.HORIZONTAL ? center.getY() : center.getX();
 
-    private double getAxisCoordinate(AxisDirection axis) {
-        return axis == AxisDirection.HORIZONTAL ? center.getX() : center.getY();
-    }
+        for (Line line : lines) {
+            double startMoving = axis == AxisDirection.HORIZONTAL ? line.getStartX() : line.getStartY();
+            double endMoving = axis == AxisDirection.HORIZONTAL ? line.getEndX() : line.getEndY();
+            double startFixed = axis == AxisDirection.HORIZONTAL ? line.getStartY() : line.getStartX();
+            double endFixed = axis == AxisDirection.HORIZONTAL ? line.getEndY() : line.getEndX();
 
-    private void resetAxisCoordinate(double value, AxisDirection axis) {
-        center = axis == AxisDirection.HORIZONTAL
-                ? new Point2D(value, center.getY())
-                : new Point2D(center.getX(), value);
-    }
+            if (Math.abs(endFixed - startFixed) < AREA_EPSILON) {
+                continue;
+            }
 
-    private void moveCenter(int delta, AxisDirection axis) {
-        center = axis == AxisDirection.HORIZONTAL
-                ? new Point2D(center.getX() + delta, center.getY())
-                : new Point2D(center.getX(), center.getY() + delta);
-    }
+            double minFixed = Math.min(startFixed, endFixed);
+            double maxFixed = Math.max(startFixed, endFixed);
+            if (fixedCoordinate < minFixed || fixedCoordinate >= maxFixed) {
+                continue;
+            }
 
-    private int calculateExitDirection(int lastDirection, boolean startedInside) {
-        if (lastDirection == 1) {
-            return startedInside ? -1 : 1;
-        } else {
-            return startedInside ? 1 : -1;
+            double ratio = (fixedCoordinate - startFixed) / (endFixed - startFixed);
+            intersections.add(startMoving + ratio * (endMoving - startMoving));
         }
+
+        return intersections;
+    }
+
+    private List<Double> removeNearDuplicateIntersections(List<Double> intersections) {
+        List<Double> unique = new ArrayList<>();
+        for (double intersection : intersections) {
+            if (unique.isEmpty() || Math.abs(intersection - unique.get(unique.size() - 1)) > AREA_EPSILON) {
+                unique.add(intersection);
+            }
+        }
+        return unique;
+    }
+
+    private OriginRelocationResult findNearestInsideInterval(List<Double> intersections,
+                                                            double originalCoord,
+                                                            AxisDirection axis) {
+        OriginRelocationResult nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+
+        for (int i = 0; i + 1 < intersections.size(); i++) {
+            double first = intersections.get(i);
+            double second = intersections.get(i + 1);
+            double midpoint = (first + second) / 2.0;
+
+            if (!isPointInsideAt(midpoint, axis)) {
+                continue;
+            }
+
+            double distance = originalCoord < first
+                    ? first - originalCoord
+                    : originalCoord > second ? originalCoord - second : 0.0;
+
+            if (distance < nearestDistance) {
+                nearest = new OriginRelocationResult(first, second);
+                nearestDistance = distance;
+            }
+        }
+
+        return nearest;
+    }
+
+    private boolean isPointInsideAt(double movingCoordinate, AxisDirection axis) {
+        Point2D point = axis == AxisDirection.HORIZONTAL
+                ? new Point2D(movingCoordinate, center.getY())
+                : new Point2D(center.getX(), movingCoordinate);
+        return pointInPolygon(lines, point);
     }
 
     // ==================== Validation ====================
